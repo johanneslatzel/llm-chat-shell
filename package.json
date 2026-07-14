@@ -1,0 +1,87 @@
+{
+    "name": "@johannes.latzel/llm-chat-shell",
+    "version": "0.1.0",
+    "description": "Tightly controlled shell tool for llm-chat with permission system",
+    "license": "MIT",
+    "sideEffects": false,
+    "files": [
+        "dist/",
+        "README.md",
+        "LICENSE"
+    ],
+    "author": "Johannes B. Latzel",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/johanneslatzel/llm-chat-shell.git"
+    },
+    "bugs": {
+        "url": "https://github.com/johanneslatzel/llm-chat-shell/issues"
+    },
+    "homepage": "https://github.com/johanneslatzel/llm-chat-shell#readme",
+    "keywords": [
+        "llm",
+        "chat",
+        "shell",
+        "tool",
+        "permissions"
+    ],
+    "engines": {
+        "node": ">=18"
+    },
+    "publishConfig": {
+        "access": "public"
+    },
+    "type": "module",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        }
+    },
+    "scripts": {
+        "prebuild": "rm -rf dist/",
+        "prepack": "npm run build",
+        "build": "tsc -p tsconfig.build.json",
+        "verify": "tsc --noEmit && eslint . --max-warnings 0 && vitest run --coverage",
+        "lint": "eslint . --max-warnings 0",
+        "format": "prettier --write 'docs/**/*.md' 'src/**/*.ts' 'tests/**/*.ts'",
+        "docs": "docker run --rm -it -p 8000:8000 -v $PWD:/docs squidfunk/mkdocs-material",
+        "test": "vitest",
+        "test:coverage": "vitest run --coverage",
+        "clean:pack": "rm -rf node_modules dist/ package-lock.json && npm cache clean --force && npm install && npm run verify && npm run build && npm pack",
+        "clean:install": "rm -rf node_modules dist/ package-lock.json && npm cache clean --force && npm install && npm run verify",
+        "prepare": "husky",
+        "audit": "npm audit --audit-level=high"
+    },
+    "lint-staged": {
+        "src/**/*.ts": [
+            "prettier --write",
+            "eslint --max-warnings 0 --no-warn-ignored",
+            "vitest related --run"
+        ]
+    },
+    "dependencies": {
+        "@johannes.latzel/llm-chat": "^0.7.0",
+        "@johannes.latzel/llm-chat-workspace": "^0.1.0",
+        "async-mutex": "^0.5.0",
+        "picomatch": "^4.0.5"
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.24.0",
+        "@types/node": "^22.14.1",
+        "@types/picomatch": "^4.0.3",
+        "@typescript-eslint/eslint-plugin": "^8.60.0",
+        "@typescript-eslint/parser": "^8.60.0",
+        "@vitest/coverage-v8": "^4.1.8",
+        "eslint": "^9.24.0",
+        "eslint-config-prettier": "^10.1.2",
+        "eslint-plugin-n": "^17.17.0",
+        "husky": "^9.1.7",
+        "lint-staged": "^15.5.1",
+        "prettier": "^3.5.3",
+        "typescript": "^6.0.3",
+        "vitest": "^4.1.8"
+    }
+}

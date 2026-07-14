@@ -1,0 +1,42 @@
+# Dependabot version updates for this repository.
+# Security alerts + automated security updates are enabled separately in
+# GitHub: Settings -> Code security and analysis -> Dependabot.
+version: 2
+updates:
+  # npm / Node dependencies (works for package-lock.json, yarn.lock, pnpm-lock.yaml)
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+    groups:
+      # Batch all patch and minor updates into one PR; major bumps stay separate.
+      patch-and-minor:
+        update-types:
+          - "patch"
+          - "minor"
+
+  # GitHub Actions workflows
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - ci
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      actions:
+        patterns:
+          - "*"
