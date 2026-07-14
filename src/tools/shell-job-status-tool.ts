@@ -5,9 +5,9 @@ import {
     ResultStatus,
     type PartialToolResult
 } from '@johannes.latzel/llm-chat';
-import type { ShellSessionManager } from './session-manager.js';
-import { ShellJobStatus } from './types.js';
-import type { ShellJob } from './types.js';
+import type { ShellSessionManager } from '../lib/session-manager.js';
+import { ShellJobStatus } from '../lib/types.js';
+import type { ShellJob } from '../lib/types.js';
 
 /**
  * Tool that returns the status and, once finished, the results of a background
@@ -40,6 +40,7 @@ export class ShellJobStatusTool extends Tool {
         const parts: string[] = [];
         parts.push(`jobId: ${job.id}`);
         parts.push(`session: ${job.sessionId}`);
+        parts.push(`cwd: ${job.cwd}`);
         parts.push(`command: ${job.command}`);
         parts.push(`status: ${job.status}`);
         parts.push(`submitted: ${new Date(job.submittedAt).toISOString()}`);

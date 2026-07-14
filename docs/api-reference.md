@@ -1,17 +1,5 @@
 # API Reference
 
-## Common patterns
-
-All tools return a `PartialToolResult` with shape:
-
-```typescript
-{
-    status: ResultStatus.Success | ResultStatus.Error;
-    result: string; // result on success, error message on failure
-    tool: string; // tool name, e.g. "shell_command"
-}
-```
-
 ## ShellCreateTool (tool name: `shell_create`)
 
 Creates a new persistent shell session. Returns a session ID for use with `shell_command`.
@@ -36,11 +24,13 @@ Executes a shell command in a persistent session. Supports shell compositions in
 | --------- | ------ | -------- | ----------------------------- |
 | `command` | string | yes      | The shell command to execute. |
 | `sessionId` | string | yes      | The session ID from `shell_create`. |
-| `useCurrentWorkspace` | boolean | no      | When `true`, the command is prefixed with `cd '<current workspace>' &&` and permissions are checked against the current workspace. If allowed, the session is **permanently rebound** to that workspace for all future permission checks. Defaults to `false` (uses the session's bound workspace root). |
+| `useCurrentWorkspace` | boolean | no      | When `true`, the command runs in the current workspace and permissions are checked against it. If allowed, the session is **permanently rebound** to that workspace for all future permission checks and command cwds. Defaults to `false` (uses the session's bound workspace root and cwd). |
+| `background` | boolean | no      | When `true`, submit the command as a queued background job and return immediately with a job ID. Poll `shell_job_status` / `shell_jobs` for results. Defaults to `false`. |
+| `timeout` | integer | no      | Max idle time in ms (no stdout/stderr output) before the command is killed. Defaults to the configured foreground or background timeout; larger values are capped by the server config. |
 
 **Returns:** Output of the command, or error message if denied/failed.
 
-> **Note:** `cd` inside a session is unrestricted real-shell behavior and never changes the session's bound workspace root. Use `useCurrentWorkspace: true` to explicitly re-anchor a session to the current workspace.
+Every command runs in a working directory attached to its job: by default the session's cwd, or the current workspace with `useCurrentWorkspace: true`. The executor re-anchors into that directory before running, so a queued command always runs in its own directory regardless of what earlier jobs did. A `cd` inside a command affects only that command; it never changes the session's bound workspace root or its default cwd.
 
 ---
 
@@ -63,6 +53,34 @@ Rules:
 
 ---
 
+## ShellJobStatusTool (tool name: `shell_job_status`)
+
+Returns the status and, once finished, the results (stdout, stderr, exit code) of a background job submitted with `shell_command` (`background=true`).
+
+**Parameters:**
+
+| Parameter | Type   | Required | Description                   |
+| --------- | ------ | -------- | ----------------------------- |
+| `jobId` | string | yes      | The job ID returned by `shell_command` when `background=true`. |
+
+**Returns:** A human-readable job report with status, working directory, timestamps, and (once completed) output, exit code, and timeout/session-alive flags.
+
+---
+
+## ShellJobsTool (tool name: `shell_jobs`)
+
+Lists the background jobs submitted to a session (queued, running, completed, failed), oldest first.
+
+**Parameters:**
+
+| Parameter | Type   | Required | Description                   |
+| --------- | ------ | -------- | ----------------------------- |
+| `sessionId` | string | yes      | The session ID from `shell_create`. |
+
+**Returns:** One line per job in `<status>\t<id>\t<cwd>\t<command>` form, or `No jobs for session <sessionId>.`
+
+---
+
 ## SwitchWorkspaceTool (tool name: `switch_workspace`)
 
 Changes the current workspace path to a new directory within the configured accessible directories (provided by the shared [`@johannes.latzel/llm-chat-workspace`](https://johanneslatzel.github.io/llm-chat-workspace/) package). It only changes `Workspace.currentPath`; it does **not** touch any shell session or its working directory.
@@ -75,7 +93,7 @@ Changes the current workspace path to a new directory within the configured acce
 
 **Returns:** `Switched workspace to: <path>`, or an error if the target is outside the accessible directories.
 
-> **Note:** Sessions are decoupled from workspace switches. Existing sessions keep their original bound workspace root (and cwd); use `useCurrentWorkspace` on `shell_command` to re-anchor them.
+Sessions are decoupled from workspace switches. Existing sessions keep their original bound workspace root and cwd; use `useCurrentWorkspace` on `shell_command` to re-anchor them.
 
 ---
 
@@ -110,17 +128,23 @@ longer than `sessionTimeout`), `process-exited`, `closed`.
 
 ## Permission System
 
-Commands are evaluated against configured permission rules. Rules can be configured **globally** and **per workspace**.
+Commands are evaluated against configured permission rules. Rules can be configured **globally** and **per workspace**. The config file uses the `globalPermissions` / `workspacePermissions` schema (see [`docs/env.md`](env.md) for the full format):
 
-```typescript
+```json
 {
-    "shell": {
-        "git *": "allow",
-        "rm *": "deny",
-        "*": "ask"
+    "globalPermissions": {
+        "defaultPermission": "deny",
+        "permissionRules": [
+            { "pattern": "git *", "action": "allow" },
+            { "pattern": "git push *", "action": "allow", "access": "write" },
+            { "pattern": "rm *", "action": "deny" },
+            { "pattern": "*", "action": "deny" }
+        ]
     }
 }
 ```
+
+Each rule is `{ "pattern", "action", "access" }`. `access` is optional and defaults to `"read"`. A rule marked `"write"` only applies when the effective workspace root grants write access; a write rule matched against a read-only workspace denies the command.
 
 Per-workspace settings keyed by resolved workspace root (from the config file's `workspacePermissions` or `config.workspacePermissions`):
 
@@ -137,19 +161,20 @@ Per-workspace settings keyed by resolved workspace root (from the config file's 
 
 A workspace root with no per-workspace entry falls back to the global `defaultPermission` / `permissionRules`.
 
-### Effective workspace root for a session
+### Effective workspace root and cwd for a session
 
-- At `shell_create`, the session is bound to the deepest workspace root containing the requested `cwd` (or `Workspace.currentPath`).
+- At `shell_create`, the session is bound to the deepest workspace root containing the requested `cwd` (or `Workspace.currentPath`), and its default cwd is the resolved `cwd`.
 - All permission checks for that session use its bound root.
-- `switch_workspace` never changes a session's bound root.
-- `useCurrentWorkspace: true` on `shell_command` checks against the current workspace and permanently rebinds the session on allow.
-- `cd` inside a session never affects permission checks.
+- Every job runs in the working directory attached to it (the session's default cwd, or the current workspace with `useCurrentWorkspace: true`); the executor re-anchors there before running.
+- `switch_workspace` never changes a session's bound root or cwd.
+- `useCurrentWorkspace: true` on `shell_command` checks against the current workspace and, on allow, permanently rebinds the session's root and default cwd.
+- A `cd` inside a command affects only that command; it never affects permission checks or the session's default cwd.
 
 ### Supported patterns
 
-- `git *` — matches any git command
-- `ls` — exact match
-- `*` — catch-all
+- `git *`: matches any git command
+- `ls`: exact match
+- `*`: catch-all
 
 ### Shell compositions
 
@@ -167,7 +192,7 @@ The permission system evaluates the full composed command, supporting:
 Configuration class for the shell executor. Timeouts and session limits read from environment variables; permission settings load from a config file pointed to by `LLM_CHAT_SHELL_CONFIG`.
 
 ```typescript
-import { ShellConfiguration } from 'llm-chat-shell';
+import { ShellConfiguration } from '@johannes.latzel/llm-chat-shell';
 
 const config = new ShellConfiguration();
 ```
@@ -179,6 +204,8 @@ const config = new ShellConfiguration();
 | `ctrlCTimeout` | `LLM_CHAT_SHELL_CTRL_C_TIMEOUT` | `30000` | Max idle time (ms) before a command is timed out; the timer resets whenever the command produces output |
 | `sigtermTimeout` | `LLM_CHAT_SHELL_SIGTERM_TIMEOUT` | `5000` | Ms to wait after SIGTERM before escalating to SIGKILL |
 | `killTimeout` | `LLM_CHAT_SHELL_KILL_TIMEOUT` | `5000` | Ms to wait after SIGKILL before giving up |
+| `backgroundTimeout` | `LLM_CHAT_SHELL_BACKGROUND_TIMEOUT` | `3600000` | Idle timeout (ms) for background jobs that do not specify a `timeout`; long silent background jobs are not killed by the short foreground `ctrlCTimeout` |
+| `maxTimeout` | `LLM_CHAT_SHELL_MAX_TIMEOUT` | `3600000` | Upper bound (ms) for LLM-supplied `timeout` values; larger requests are capped to this value. `0` disables the cap |
 
 ### Session properties
 
@@ -191,18 +218,21 @@ const config = new ShellConfiguration();
 
 | Property | Env Var | Default | Description |
 |----------|---------|---------|-------------|
-| `configFilePath` | `LLM_CHAT_SHELL_CONFIG` | — | Path to the strict-JSON permission config file. When set, `defaultPermission`, `permissionRules`, and `workspacePermissions` load from it. |
+| `configFilePath` | `LLM_CHAT_SHELL_CONFIG` | unset | Path to the strict-JSON permission config file. When set, `defaultPermission`, `permissionRules`, and `workspacePermissions` load from it. |
 | `defaultPermission` | config file `globalPermissions.defaultPermission` | `PermissionAction.Deny` | Global default permission for unmatched commands |
-| `permissionRules` | config file `globalPermissions.permissionRules` | `[]` | Global permission rules |
+| `permissionRules` | config file `globalPermissions.permissionRules` | `[]` | Global permission rules. Each rule is `{ pattern, action, access? }`; `access` defaults to `PermissionAccess.Read`. |
 | `workspacePermissions` | config file `workspacePermissions` | `new Map()` | Per-workspace overrides as `Map<resolvedRoot, WorkspacePermissions>`. Programmatic assignments take precedence over the config file. |
 
-The config file is strict JSON (no comments) — see [`docs/env.md`](env.md) for the full format. Loading it via `loadShellConfigFile(path)` throws on an unreadable file, invalid JSON, or an invalid shape.
+The `PermissionSystem` resolves a rule's access tier against the effective workspace root: a `PermissionAccess.Write` rule only grants when the root is writable (via `Workspace.canWrite`), and denies the command otherwise.
+
+The config file is strict JSON (no comments): see [`docs/env.md`](env.md) for the full format. Loading it via `loadShellConfigFile(path)` throws on an unreadable file, invalid JSON, or an invalid shape.
 
 ### Methods
 
 | Method | Description |
 |--------|-------------|
 | `resolvePermissions(workspaceRoot: string)` | Returns the `WorkspacePermissions` for a root, falling back to the global `defaultPermission` / `permissionRules` when the root has no entry (or is `''`). |
+| `resolveIdleTimeout(background: boolean, requested?: number)` | Returns the effective idle timeout: a positive `requested` value wins (capped at `maxTimeout` when enabled); otherwise `backgroundTimeout` for background jobs, `ctrlCTimeout` for foreground commands. |
 
 ---
 
@@ -221,14 +251,14 @@ interface WorkspacePermissions {
 
 ### ShellPackage
 
-Groups the `shell_create`, `shell_command`, `shell_permissions`, and `switch_workspace` tools with a per-workspace permission system.
+Groups the `shell_create`, `shell_command`, `shell_permissions`, `shell_job_status`, `shell_jobs`, and `switch_workspace` tools with a per-workspace permission system.
 
 ```typescript
-import { ShellPackage } from 'llm-chat-shell';
+import { ShellPackage } from '@johannes.latzel/llm-chat-shell';
 const pkg = new ShellPackage();
 service.tools().add(pkg);
 ```
 
-- **Tools:** shell_create, shell_command, shell_permissions, switch_workspace (4 tools)
-- **Constructor:** `(config?, sessionManager?, workspace?)` — when a `sessionManager` is provided its own workspace is used; otherwise `workspace` (or an internally built `Workspace(new DirectoryConfiguration())`) is shared by the tools.
+- **Tools:** shell_create, shell_command, shell_permissions, shell_job_status, shell_jobs, switch_workspace (6 tools)
+- **Constructor:** `(config?, sessionManager?, workspace?)`: when a `sessionManager` is provided its own workspace is used; otherwise `workspace` (or an internally built `Workspace(new DirectoryConfiguration())`) is shared by the tools.
 - **`dispose()`:** closes all sessions and stops the idle-expiry sweeper (delegates to the session manager)

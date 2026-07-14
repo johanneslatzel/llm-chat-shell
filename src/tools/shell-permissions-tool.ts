@@ -5,8 +5,8 @@ import {
     type PartialToolResult
 } from '@johannes.latzel/llm-chat';
 import type { Workspace } from '@johannes.latzel/llm-chat-workspace';
-import type { ShellConfiguration } from './config.js';
-import { workspaceForPath } from './permission.js';
+import type { ShellConfiguration } from '../lib/config.js';
+import { workspaceForPath } from '../lib/permission.js';
 
 /**
  * Tool that returns the current workspace and the permission rules / default
@@ -42,7 +42,8 @@ export class ShellPermissionsTool extends Tool {
             parts.push('Rules:');
             for (let i = 0; i < perms.permissionRules.length; i++) {
                 const rule = perms.permissionRules[i]!;
-                parts.push(`${i + 1}. ${rule.pattern} → ${rule.action}`);
+                const access = rule.access !== undefined ? ` (${rule.access})` : '';
+                parts.push(`${i + 1}. ${rule.pattern} → ${rule.action}${access}`);
             }
         }
 

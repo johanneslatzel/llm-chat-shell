@@ -4,10 +4,10 @@ import {
     SwitchWorkspaceTool,
     DirectoryConfiguration
 } from '@johannes.latzel/llm-chat-workspace';
-import { ShellConfiguration } from './config.js';
-import { BashShellExecutorFactory } from './bash-executor.js';
-import { ShellSessionManager } from './session-manager.js';
-import { PermissionSystem } from './permission.js';
+import { ShellConfiguration } from '../lib/config.js';
+import { BashShellExecutorFactory } from '../lib/bash-executor.js';
+import { ShellSessionManager } from '../lib/session-manager.js';
+import { PermissionSystem } from '../lib/permission.js';
 import { ShellCreateTool } from './shell-create-tool.js';
 import { ShellCommandTool } from './shell-command-tool.js';
 import { ShellPermissionsTool } from './shell-permissions-tool.js';
@@ -73,7 +73,9 @@ export class ShellPackage extends ToolPackage {
                 workspace ?? new Workspace(new DirectoryConfiguration())
             );
 
-        const permissionSystem = new PermissionSystem(cfg);
+        const permissionSystem = new PermissionSystem(cfg, (root) =>
+            manager.workspace.canWrite(root)
+        );
 
         super([
             new ShellCreateTool(manager),

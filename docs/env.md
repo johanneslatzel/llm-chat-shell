@@ -1,6 +1,6 @@
 # Environment Variables
 
-Set these however you prefer (shell, `.env`, etc.). A `.env.example` is included.
+Set these via shell, `.env`, or similar. A `.env.example` is included.
 
 ## Timeout
 
@@ -9,6 +9,8 @@ Set these however you prefer (shell, `.env`, etc.). A `.env.example` is included
 | `LLM_CHAT_SHELL_CTRL_C_TIMEOUT` | `30000` | Max idle time (ms) before a command is timed out; resets whenever the command produces output |
 | `LLM_CHAT_SHELL_SIGTERM_TIMEOUT` | `5000` | Ms to wait after SIGTERM before escalating to SIGKILL |
 | `LLM_CHAT_SHELL_KILL_TIMEOUT` | `5000` | Ms to wait after SIGKILL before giving up |
+| `LLM_CHAT_SHELL_BACKGROUND_TIMEOUT` | `3600000` | Idle timeout (ms) for background jobs that do not specify a `timeout`; long silent background jobs are not killed by the short foreground timeout |
+| `LLM_CHAT_SHELL_MAX_TIMEOUT` | `3600000` | Upper bound (ms) for LLM-supplied `timeout` values; larger requests are capped to this value. `0` disables the cap |
 
 ## Sessions
 
@@ -23,14 +25,16 @@ Permission settings load from a config file. The environment only configures its
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `LLM_CHAT_SHELL_CONFIG` | — | Path to a strict-JSON permission config file. When unset, defaults apply (deny, no rules, no per-workspace overrides). |
+| `LLM_CHAT_SHELL_CONFIG` | unset | Path to a strict-JSON permission config file. When unset, defaults apply (deny, no rules, no per-workspace overrides). |
 
 ### Config file
 
 The config file is strict JSON (no comments) and may contain:
 
-- `globalPermissions` — the global settings as a full `{ "defaultPermission", "permissionRules" }` set (defaults: `"deny"`, `[]`)
-- `workspacePermissions` — an object keyed by resolved workspace root path, each value a full `{ "defaultPermission", "permissionRules" }` set
+- `globalPermissions`: the global settings as a full `{ "defaultPermission", "permissionRules" }` set (defaults: `"deny"`, `[]`)
+- `workspacePermissions`: an object keyed by resolved workspace root path, each value a full `{ "defaultPermission", "permissionRules" }` set
+
+Each rule is `{ "pattern", "action", "access" }`. `access` is optional and defaults to `"read"`; a rule marked `"write"` only applies in a workspace whose root grants write access.
 
 ```json
 {
@@ -38,6 +42,7 @@ The config file is strict JSON (no comments) and may contain:
         "defaultPermission": "deny",
         "permissionRules": [
             { "pattern": "git *", "action": "allow" },
+            { "pattern": "git push *", "action": "allow", "access": "write" },
             { "pattern": "rm *", "action": "deny" }
         ]
     },
@@ -52,7 +57,6 @@ The config file is strict JSON (no comments) and may contain:
 
 A ready-to-copy example lives in [`shell-config.example.json`](../shell-config.example.json).
 
-A workspace root with no `workspacePermissions` entry falls back to the global settings in `globalPermissions`. If the config file is unreadable, invalid JSON, or has an invalid shape, `ShellConfiguration` throws at construction — it never silently falls back to permissive defaults.
+A workspace root with no `workspacePermissions` entry falls back to the global settings in `globalPermissions`. If the config file is unreadable, invalid JSON, or has an invalid shape, `ShellConfiguration` throws at construction; it never silently falls back to permissive defaults.
 
 The workspace package's own variables (`LLM_CHAT_WORKSPACE_*`) are documented in the [`@johannes.latzel/llm-chat-workspace`](https://johanneslatzel.github.io/llm-chat-workspace/) docs.
-

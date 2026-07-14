@@ -12,6 +12,7 @@ export interface JobRecord extends ShellJob {
 export function createJobRecord(input: {
     id: string;
     sessionId: string;
+    cwd: string;
     command: string;
     idleTimeoutMs: number;
 }): JobRecord {

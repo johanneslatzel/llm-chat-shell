@@ -1,5 +1,7 @@
 export {
     PermissionAction,
+    PermissionAccess,
+    PermissionDenyReason,
     type PermissionRule,
     type WorkspacePermissions,
     type ShellConfigFile,
@@ -9,11 +11,11 @@ export {
     ShellJobStatus,
     type ShellJob,
     type ShellSessionInfo
-} from './tools/shell/types.js';
-export { ShellConfiguration } from './tools/shell/config.js';
-export { BashShellExecutor, BashShellExecutorFactory } from './tools/shell/bash-executor.js';
-export { ShellSessionManager, type ShellExecutorFactory } from './tools/shell/session-manager.js';
-export { ShellPermissionsTool } from './tools/shell/shell-permissions-tool.js';
-export { ShellJobStatusTool } from './tools/shell/shell-job-status-tool.js';
-export { ShellJobsTool } from './tools/shell/shell-jobs-tool.js';
-export { ShellPackage } from './tools/shell/shell-package.js';
+} from './lib/types.js';
+export { ShellConfiguration } from './lib/config.js';
+export { BashShellExecutor, BashShellExecutorFactory } from './lib/bash-executor.js';
+export { ShellSessionManager, type ShellExecutorFactory } from './lib/session-manager.js';
+export { ShellPermissionsTool } from './tools/shell-permissions-tool.js';
+export { ShellJobStatusTool } from './tools/shell-job-status-tool.js';
+export { ShellJobsTool } from './tools/shell-jobs-tool.js';
+export { ShellPackage } from './tools/shell-package.js';

@@ -5,7 +5,7 @@ import {
     ResultStatus,
     type PartialToolResult
 } from '@johannes.latzel/llm-chat';
-import type { ShellSessionManager } from './session-manager.js';
+import type { ShellSessionManager } from '../lib/session-manager.js';
 
 /**
  * Tool that creates a new persistent shell session.

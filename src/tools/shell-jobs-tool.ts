@@ -5,7 +5,7 @@ import {
     ResultStatus,
     type PartialToolResult
 } from '@johannes.latzel/llm-chat';
-import type { ShellSessionManager } from './session-manager.js';
+import type { ShellSessionManager } from '../lib/session-manager.js';
 
 /**
  * Tool that lists the background jobs submitted to a session
@@ -32,7 +32,7 @@ export class ShellJobsTool extends Tool {
         if (jobs.length === 0) {
             return { result: `No jobs for session ${sessionId}.`, status: ResultStatus.Success };
         }
-        const lines = jobs.map((job) => `${job.status}\t${job.id}\t${job.command}`);
+        const lines = jobs.map((job) => `${job.status}\t${job.id}\t${job.cwd}\t${job.command}`);
         return {
             result: `${jobs.length} job(s) for session ${sessionId}:\n${lines.join('\n')}`,
             status: ResultStatus.Success

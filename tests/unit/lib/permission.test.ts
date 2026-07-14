@@ -3,9 +3,9 @@ import {
     parseSubcommands,
     PermissionSystem,
     workspaceForPath
-} from '../../../src/tools/shell/permission.js';
-import { PermissionAction } from '../../../src/tools/shell/types.js';
-import { ShellConfiguration } from '../../../src/tools/shell/config.js';
+} from '../../../src/lib/permission.js';
+import { PermissionAction, PermissionAccess, PermissionDenyReason } from '../../../src/lib/types.js';
+import { ShellConfiguration } from '../../../src/lib/config.js';
 
 describe('workspaceForPath', () => {
     it('returns empty string when cwd is outside all access roots', () => {
@@ -250,7 +250,7 @@ describe('parseSubcommands', () => {
 
 describe('PermissionSystem', () => {
     function createConfig(
-        rules: { pattern: string; action: PermissionAction }[],
+        rules: { pattern: string; action: PermissionAction; access?: PermissionAccess }[],
         defaultAction = PermissionAction.Deny
     ): ShellConfiguration {
         const cfg = new ShellConfiguration();
@@ -678,4 +678,160 @@ describe('PermissionSystem', () => {
             );
         });
     });
+
+    describe('write-access tier', () => {
+        it('allows a write rule in a writable workspace', () => {
+            const system = new PermissionSystem(
+                createConfig(
+                    [{ pattern: 'git push *', action: PermissionAction.Allow, access: PermissionAccess.Write }]
+                ),
+                () => true
+            );
+            const result = system.check('git push origin main', '/ws/a');
+            expect(result.action).toBe(PermissionAction.Allow);
+            expect(result.denyReason).toBeUndefined();
+        });
+
+        it('denies a write rule in a read-only workspace with a write-access reason', () => {
+            const system = new PermissionSystem(
+                createConfig(
+                    [{ pattern: 'git push *', action: PermissionAction.Allow, access: PermissionAccess.Write }]
+                ),
+                () => false
+            );
+            const result = system.check('git push origin main', '/ws/a');
+            expect(result.action).toBe(PermissionAction.Deny);
+            expect(result.denyReason).toBe(PermissionDenyReason.WriteAccess);
+        });
+
+        it('does not apply write gating when no canWrite predicate is provided', () => {
+            const system = new PermissionSystem(
+                createConfig([
+                    { pattern: 'git push *', action: PermissionAction.Allow, access: PermissionAccess.Write }
+                ])
+            );
+            expect(system.check('git push origin main', '/ws/a').action).toBe(
+                PermissionAction.Allow
+            );
+        });
+
+        it('read-classified rules apply regardless of workspace access', () => {
+            const system = new PermissionSystem(
+                createConfig([{ pattern: 'git *', action: PermissionAction.Allow }]),
+                () => false
+            );
+            expect(system.check('git log', '/ws/a').action).toBe(PermissionAction.Allow);
+        });
+
+        it('default access is read when access is omitted', () => {
+            const system = new PermissionSystem(
+                createConfig([{ pattern: 'git *', action: PermissionAction.Allow }]),
+                () => false
+            );
+            expect(system.check('git log', '/ws/a').action).toBe(PermissionAction.Allow);
+        });
+
+        it('deny rules are not gated by write access', () => {
+            const system = new PermissionSystem(
+                createConfig([
+                    { pattern: 'git push *', action: PermissionAction.Deny, access: PermissionAccess.Write }
+                ]),
+                () => false
+            );
+            const result = system.check('git push origin main', '/ws/a');
+            expect(result.action).toBe(PermissionAction.Deny);
+            expect(result.denyReason).toBe(PermissionDenyReason.Pattern);
+        });
+
+        it('a more specific write rule blocks even where a broader read rule matches', () => {
+            const system = new PermissionSystem(
+                createConfig([
+                    { pattern: 'git *', action: PermissionAction.Allow },
+                    { pattern: 'git push *', action: PermissionAction.Allow, access: PermissionAccess.Write }
+                ]),
+                () => false
+            );
+            const result = system.check('git push origin main', '/ws/a');
+            expect(result.action).toBe(PermissionAction.Deny);
+            expect(result.denyReason).toBe(PermissionDenyReason.WriteAccess);
+            // Read-only commands still pass via the read rule
+            expect(system.check('git log', '/ws/a').action).toBe(PermissionAction.Allow);
+        });
+
+        it('resolves write access against the provided workspace root', () => {
+            const writableRoots = new Set(['/ws/write']);
+            const system = new PermissionSystem(
+                createConfig([
+                    { pattern: 'git push *', action: PermissionAction.Allow, access: PermissionAccess.Write }
+                ]),
+                (root) => writableRoots.has(root)
+            );
+            expect(system.check('git push origin main', '/ws/write').action).toBe(
+                PermissionAction.Allow
+            );
+            expect(system.check('git push origin main', '/ws/read').action).toBe(
+                PermissionAction.Deny
+            );
+        });
+    });
+        it('denies a composed command when a write subcommand matches a read-only workspace', () => {
+            const system = new PermissionSystem(
+                createConfig([
+                    { pattern: 'git log *', action: PermissionAction.Allow },
+                    { pattern: 'git push *', action: PermissionAction.Allow, access: PermissionAccess.Write }
+                ]),
+                () => false
+            );
+            const result = system.check('git log --oneline && git push origin main', '/ws/a');
+            expect(result.action).toBe(PermissionAction.Deny);
+            expect(result.denyReason).toBe(PermissionDenyReason.WriteAccess);
+            expect(result.subcommands).toEqual(['git log --oneline', 'git push origin main']);
+        });
+
+        it('allows a composed command when the write subcommand runs in a writable workspace', () => {
+            const system = new PermissionSystem(
+                createConfig([
+                    { pattern: 'git log *', action: PermissionAction.Allow },
+                    { pattern: 'git push *', action: PermissionAction.Allow, access: PermissionAccess.Write }
+                ]),
+                () => true
+            );
+            expect(system.check('git log --oneline && git push origin main', '/ws/a').action).toBe(
+                PermissionAction.Allow
+            );
+        });
+
+        it('does not gate the default permission by workspace access', () => {
+            const system = new PermissionSystem(
+                createConfig([], PermissionAction.Allow),
+                () => false
+            );
+            expect(system.check('echo hi', '/ws/a').action).toBe(PermissionAction.Allow);
+        });
+
+        it('applies the write tier to per-workspace rules', () => {
+            const cfg = createConfig([]);
+            cfg.workspacePermissions.set('/ws/ro', {
+                defaultPermission: PermissionAction.Deny,
+                permissionRules: [
+                    { pattern: 'git push *', action: PermissionAction.Allow, access: PermissionAccess.Write }
+                ]
+            });
+            cfg.workspacePermissions.set('/ws/rw', {
+                defaultPermission: PermissionAction.Deny,
+                permissionRules: [
+                    { pattern: 'git push *', action: PermissionAction.Allow, access: PermissionAccess.Write }
+                ]
+            });
+            const system = new PermissionSystem(cfg, (root) => root === '/ws/rw');
+
+            const ro = system.check('git push origin main', '/ws/ro');
+            expect(ro.action).toBe(PermissionAction.Deny);
+            expect(ro.denyReason).toBe(PermissionDenyReason.WriteAccess);
+
+            expect(system.check('git push origin main', '/ws/rw').action).toBe(
+                PermissionAction.Allow
+            );
+        });
+
 });

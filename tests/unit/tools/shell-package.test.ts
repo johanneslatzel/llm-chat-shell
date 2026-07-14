@@ -3,13 +3,13 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { Workspace, DirectoryConfiguration, AccessType } from '@johannes.latzel/llm-chat-workspace';
-import { ShellPackage } from '../../../src/tools/shell/shell-package.js';
-import { ShellConfiguration } from '../../../src/tools/shell/config.js';
-import { BashShellExecutor } from '../../../src/tools/shell/bash-executor.js';
-import { ShellSessionManager } from '../../../src/tools/shell/session-manager.js';
-import { PermissionAction } from '../../../src/tools/shell/types.js';
-import type { ShellExecutor } from '../../../src/tools/shell/types.js';
-import type { ShellExecutorFactory } from '../../../src/tools/shell/session-manager.js';
+import { ShellPackage } from '../../../src/tools/shell-package.js';
+import { ShellConfiguration } from '../../../src/lib/config.js';
+import { BashShellExecutor } from '../../../src/lib/bash-executor.js';
+import { ShellSessionManager } from '../../../src/lib/session-manager.js';
+import { PermissionAction, PermissionAccess } from '../../../src/lib/types.js';
+import type { ShellExecutor } from '../../../src/lib/types.js';
+import type { ShellExecutorFactory } from '../../../src/lib/session-manager.js';
 import { ResultStatus } from '@johannes.latzel/llm-chat';
 
 function createWorkspace(cwd: string): Workspace {
@@ -65,7 +65,9 @@ describe('ShellPackage', () => {
         const created: ShellExecutor[] = [];
         const factory: ShellExecutorFactory = {
             create: async (cwd?: string) => {
-                const exec = new BashShellExecutor(cwd ? { ...new ShellConfiguration(), cwd } : new ShellConfiguration());
+                const exec = new BashShellExecutor(
+                    cwd ? { ...new ShellConfiguration(), cwd } : new ShellConfiguration()
+                );
                 created.push(exec);
                 return exec;
             }
@@ -85,6 +87,29 @@ describe('ShellPackage', () => {
         const createTool = pkg.tools().find((t) => t.name === 'shell_create')!;
         const results = await createTool.execute({});
         expect(results[0]!.status).toBe('success');
+    });
+
+    it('enforces write-classified rules against workspace access', async () => {
+        const cfg = new ShellConfiguration();
+        cfg.permissionRules = [
+            { pattern: 'echo *', action: PermissionAction.Allow, access: PermissionAccess.Write }
+        ];
+        const workspace = createWorkspace(process.cwd());
+        const manager = new ShellSessionManager(
+            { create: async () => new BashShellExecutor(new ShellConfiguration()) },
+            cfg,
+            workspace
+        );
+        managers.push(manager);
+
+        const pkg = new ShellPackage(cfg, manager, workspace);
+        const createTool = pkg.tools().find((t) => t.name === 'shell_create')!;
+        const commandTool = pkg.tools().find((t) => t.name === 'shell_command')!;
+
+        const created = await createTool.execute({});
+        const sessionId = created[0]!.result;
+        const results = await commandTool.execute({ command: 'echo hi', sessionId });
+        expect(results[0]!.status).toBe(ResultStatus.Success);
     });
 
     it('creates sessions with cwd using default factory', async () => {

@@ -3,6 +3,7 @@
     "defaultPermission": "deny",
     "permissionRules": [
       { "pattern": "git *", "action": "allow" },
+      { "pattern": "git push *", "action": "allow", "access": "write" },
       { "pattern": "rm *", "action": "deny" }
     ]
   },

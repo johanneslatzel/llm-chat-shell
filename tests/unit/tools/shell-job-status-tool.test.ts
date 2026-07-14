@@ -1,15 +1,15 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { Workspace, DirectoryConfiguration, AccessType } from '@johannes.latzel/llm-chat-workspace';
 import { ResultStatus } from '@johannes.latzel/llm-chat';
-import { ShellJobStatusTool } from '../../../src/tools/shell/shell-job-status-tool.js';
-import { ShellSessionManager } from '../../../src/tools/shell/session-manager.js';
-import { ShellConfiguration } from '../../../src/tools/shell/config.js';
+import { ShellJobStatusTool } from '../../../src/tools/shell-job-status-tool.js';
+import { ShellSessionManager } from '../../../src/lib/session-manager.js';
+import { ShellConfiguration } from '../../../src/lib/config.js';
 import {
     ShellJobStatus,
     type ShellCommandResult,
     type ShellExecuteOptions,
     type ShellExecutor
-} from '../../../src/tools/shell/types.js';
+} from '../../../src/lib/types.js';
 
 function createWorkspace(cwd: string): Workspace {
     return new Workspace(
@@ -78,6 +78,7 @@ describe('ShellJobStatusTool', () => {
         expect(results[0]!.status).toBe(ResultStatus.Success);
         expect(results[0]!.result).toContain(`jobId: ${queued.id}`);
         expect(results[0]!.result).toContain(`session: ${id}`);
+        expect(results[0]!.result).toContain(`cwd: ${process.cwd()}`);
         expect(results[0]!.result).toContain('command: echo two');
         expect(results[0]!.result).toContain(`status: ${ShellJobStatus.Queued}`);
         expect(results[0]!.result).toContain('queue position: 1');
@@ -108,6 +109,7 @@ describe('ShellJobStatusTool', () => {
 
         const results = await tool.execute({ jobId: job.id });
         expect(results[0]!.status).toBe(ResultStatus.Success);
+        expect(results[0]!.result).toContain(`cwd: ${process.cwd()}`);
         expect(results[0]!.result).toContain(`status: ${ShellJobStatus.Completed}`);
         expect(results[0]!.result).toContain('stdout:\nout');
         expect(results[0]!.result).toContain('[stderr] err');

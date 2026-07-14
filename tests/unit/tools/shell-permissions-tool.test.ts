@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import { Workspace, DirectoryConfiguration, AccessType } from '@johannes.latzel/llm-chat-workspace';
-import { ShellPermissionsTool } from '../../../src/tools/shell/shell-permissions-tool.js';
-import { ShellConfiguration } from '../../../src/tools/shell/config.js';
-import { PermissionAction } from '../../../src/tools/shell/types.js';
+import { ShellPermissionsTool } from '../../../src/tools/shell-permissions-tool.js';
+import { ShellConfiguration } from '../../../src/lib/config.js';
+import { PermissionAction, PermissionAccess } from '../../../src/lib/types.js';
 
 function createWorkspace(cwd: string): Workspace {
     return new Workspace(
@@ -43,6 +43,22 @@ describe('ShellPermissionsTool', () => {
         expect(results[0]!.status).toBe('success');
         expect(results[0]!.result).toBe(
             `Workspace: ${process.cwd()}\nDefault: deny\nRules:\n1. git * → allow\n2. rm * → deny`
+        );
+    });
+
+    it('reports the access tier on write rules', async () => {
+        const config = new ShellConfiguration();
+        config.defaultPermission = PermissionAction.Deny;
+        config.permissionRules = [
+            { pattern: 'git *', action: PermissionAction.Allow },
+            { pattern: 'git push *', action: PermissionAction.Allow, access: PermissionAccess.Write }
+        ];
+
+        const tool = new ShellPermissionsTool(config, createWorkspace(process.cwd()));
+        const results = await tool.execute({});
+
+        expect(results[0]!.result).toBe(
+            `Workspace: ${process.cwd()}\nDefault: deny\nRules:\n1. git * → allow\n2. git push * → allow (write)`
         );
     });
 

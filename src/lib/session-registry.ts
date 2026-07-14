@@ -15,6 +15,8 @@ export interface ShellSessionTombstone {
 export interface SessionEntry {
     executor: ShellExecutor;
     workspaceRoot: string;
+    /** Working directory this session's jobs run in; the executor re-anchors here before each job. */
+    cwd: string;
     /** Last time this session started or finished work; used by the idle-expiry sweeper. */
     lastUsedMs: number;
     /** Pending (queued) jobs in FIFO order — a shell runs a single command at a time. */
@@ -79,6 +81,7 @@ export class SessionRegistry {
         this.sessions.set(id, {
             executor,
             workspaceRoot: this.resolveWorkspaceRoot(resolvedCwd),
+            cwd: resolvedCwd,
             lastUsedMs: Date.now(),
             queue: [],
             processing: false
@@ -151,11 +154,23 @@ export class SessionRegistry {
     }
 
     /**
-     * Permanently rebind a session to a different workspace root.
+     * Return the working directory a session's jobs run in.
      * @throws Error if session does not exist.
      */
-    rebind(sessionId: string, workspaceRoot: string): void {
-        this.require(sessionId).workspaceRoot = workspaceRoot;
+    getCwd(sessionId: string): string {
+        return this.require(sessionId).cwd;
+    }
+
+    /**
+     * Permanently rebind a session to a different workspace root and working
+     * directory. Subsequent permission checks use the new root and jobs run in
+     * the new cwd.
+     * @throws Error if session does not exist.
+     */
+    rebind(sessionId: string, workspaceRoot: string, cwd: string): void {
+        const entry = this.require(sessionId);
+        entry.workspaceRoot = workspaceRoot;
+        entry.cwd = cwd;
     }
 
     /**

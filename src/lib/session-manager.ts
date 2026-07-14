@@ -89,12 +89,21 @@ export class ShellSessionManager {
     }
 
     /**
-     * Permanently rebind a session to a different workspace root. Subsequent
-     * permission checks for this session use the new root.
+     * Return the working directory a session's jobs run in.
      * @throws Error if session does not exist.
      */
-    async rebindSession(sessionId: string, workspaceRoot: string): Promise<void> {
-        await this.mutex.runExclusive(() => this.sessions.rebind(sessionId, workspaceRoot));
+    async getSessionCwd(sessionId: string): Promise<string> {
+        return this.mutex.runExclusive(() => this.sessions.getCwd(sessionId));
+    }
+
+    /**
+     * Permanently rebind a session to a different workspace root and working
+     * directory. Subsequent permission checks use the new root and jobs run in
+     * the new cwd.
+     * @throws Error if session does not exist.
+     */
+    async rebindSession(sessionId: string, workspaceRoot: string, cwd: string): Promise<void> {
+        await this.mutex.runExclusive(() => this.sessions.rebind(sessionId, workspaceRoot, cwd));
     }
 
     /**
@@ -102,20 +111,24 @@ export class ShellSessionManager {
      * to it and it completes (or fails). Commands already queued on the same
      * session (including background jobs) run first.
      *
-     * @param options - `timeout` overrides the idle timeout (ms, capped at
-     *                  `config.maxTimeout`); omitted uses `ctrlCTimeout`.
+     * @param options - `cwd` is the working directory the command runs in
+     *                  (defaults to the session's cwd); `timeout` overrides the
+     *                  idle timeout (ms, capped at `config.maxTimeout`); omitted
+     *                  uses `ctrlCTimeout`.
      * @throws Error if the session does not exist or the job failed before running.
      */
     async executeCommand(
         sessionId: string,
         command: string,
-        options?: { timeout?: number }
+        options?: { timeout?: number; cwd?: string }
     ): Promise<ShellCommandResult> {
+        const cwd = options?.cwd ?? (await this.getSessionCwd(sessionId));
         const record = await this.mutex.runExclusive(() =>
             this.queue.submit(
                 sessionId,
                 command,
-                this.config.resolveIdleTimeout(false, options?.timeout)
+                this.config.resolveIdleTimeout(false, options?.timeout),
+                cwd
             )
         );
         await record.done;
@@ -137,20 +150,24 @@ export class ShellSessionManager {
      * {@link ShellJob}. The job runs when the shell is free (FIFO queue per
      * session); poll {@link getJobStatus} for progress and results.
      *
-     * @param options - `timeout` overrides the idle timeout (ms, capped at
-     *                  `config.maxTimeout`); omitted uses `backgroundTimeout`.
+     * @param options - `cwd` is the working directory the job runs in
+     *                  (defaults to the session's cwd); `timeout` overrides the
+     *                  idle timeout (ms, capped at `config.maxTimeout`); omitted
+     *                  uses `backgroundTimeout`.
      * @throws Error if the session does not exist.
      */
     async submitCommand(
         sessionId: string,
         command: string,
-        options?: { timeout?: number }
+        options?: { timeout?: number; cwd?: string }
     ): Promise<ShellJob> {
+        const cwd = options?.cwd ?? (await this.getSessionCwd(sessionId));
         return this.mutex.runExclusive(() =>
             this.queue.submit(
                 sessionId,
                 command,
-                this.config.resolveIdleTimeout(true, options?.timeout)
+                this.config.resolveIdleTimeout(true, options?.timeout),
+                cwd
             )
         );
     }

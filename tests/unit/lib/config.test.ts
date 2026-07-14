@@ -5,8 +5,8 @@ import { join } from 'node:path';
 import {
     ShellConfiguration,
     loadShellConfigFile
-} from '../../../src/tools/shell/config.js';
-import { PermissionAction } from '../../../src/tools/shell/types.js';
+} from '../../../src/lib/config.js';
+import { PermissionAction, PermissionAccess } from '../../../src/lib/types.js';
 
 function clearEnv() {
     delete process.env['LLM_CHAT_SHELL_CTRL_C_TIMEOUT'];
@@ -281,6 +281,56 @@ describe('ShellConfiguration', () => {
             );
             process.env['LLM_CHAT_SHELL_CONFIG'] = file;
             expect(() => new ShellConfiguration()).toThrow(/action must be 'allow' or 'deny'/);
+        });
+
+        it('parses a rule access of "write"', () => {
+            const file = writeConfig(
+                '{ "globalPermissions": { "defaultPermission": "deny", "permissionRules": [{ "pattern": "git push *", "action": "allow", "access": "write" }] } }'
+            );
+            process.env['LLM_CHAT_SHELL_CONFIG'] = file;
+            const config = new ShellConfiguration();
+            expect(config.permissionRules).toEqual([
+                { pattern: 'git push *', action: PermissionAction.Allow, access: PermissionAccess.Write }
+            ]);
+        });
+
+        it('parses a rule access of "read"', () => {
+            const file = writeConfig(
+                '{ "globalPermissions": { "defaultPermission": "deny", "permissionRules": [{ "pattern": "git *", "action": "allow", "access": "read" }] } }'
+            );
+            process.env['LLM_CHAT_SHELL_CONFIG'] = file;
+            const config = new ShellConfiguration();
+            expect(config.permissionRules).toEqual([
+                { pattern: 'git *', action: PermissionAction.Allow, access: PermissionAccess.Read }
+            ]);
+        });
+
+        it('omits access on a rule when it is not provided', () => {
+            const file = writeConfig(
+                '{ "globalPermissions": { "defaultPermission": "deny", "permissionRules": [{ "pattern": "git *", "action": "allow" }] } }'
+            );
+            process.env['LLM_CHAT_SHELL_CONFIG'] = file;
+            const config = new ShellConfiguration();
+            expect(config.permissionRules).toEqual([{ pattern: 'git *', action: PermissionAction.Allow }]);
+        });
+
+        it('throws when a rule has an invalid access', () => {
+            const file = writeConfig(
+                '{ "globalPermissions": { "defaultPermission": "deny", "permissionRules": [{ "pattern": "git *", "action": "allow", "access": "maybe" }] } }'
+            );
+            process.env['LLM_CHAT_SHELL_CONFIG'] = file;
+            expect(() => new ShellConfiguration()).toThrow(/access must be 'read' or 'write'/);
+        });
+
+        it('parses access in per-workspace rules', () => {
+            const file = writeConfig(
+                '{ "workspacePermissions": { "/ws/a": { "defaultPermission": "deny", "permissionRules": [{ "pattern": "rm *", "action": "deny", "access": "write" }] } } }'
+            );
+            process.env['LLM_CHAT_SHELL_CONFIG'] = file;
+            const config = new ShellConfiguration();
+            expect(config.workspacePermissions.get('/ws/a')?.permissionRules).toEqual([
+                { pattern: 'rm *', action: PermissionAction.Deny, access: PermissionAccess.Write }
+            ]);
         });
 
         it('throws when workspacePermissions is not an object', () => {

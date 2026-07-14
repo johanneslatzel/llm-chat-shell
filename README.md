@@ -11,16 +11,13 @@
 [![Socket Badge](https://badge.socket.dev/npm/package/@johannes.latzel/llm-chat-shell/latest)](https://badge.socket.dev/npm/package/@johannes.latzel/llm-chat-shell/latest)
 [![AI Assisted Yes](https://img.shields.io/badge/AI%20Assisted-Yes-green)](https://github.com/mefengl/made-by-ai)
 
-A tightly controlled shell tool for LLM chat, with a per-workspace permission system similar to opencode's bash tool permissions. Supports shell compositions including pipes (`|`), logical operators (`||`, `&&`), stream redirects, and more. Built on the shared [`@johannes.latzel/llm-chat-workspace`](https://johanneslatzel.github.io/llm-chat-workspace/) package for workspace access and switching.
+A tightly controlled shell tool for LLM chat, with a per-workspace permission system similar to opencode's bash tool permissions. Supports shell compositions including pipes (`|`), logical operators (`||`, `&&`), and stream redirects. Built on the shared [`@johannes.latzel/llm-chat-workspace`](https://johanneslatzel.github.io/llm-chat-workspace/) package for workspace access and switching.
 
 ## Features
 
-- `shell_create`, `shell_command`, `shell_permissions`, `shell_job_status`, `shell_jobs`, and `switch_workspace` tools for persistent shell sessions
-- Workspace switching decoupled from shell sessions — `switch_workspace` changes the current workspace only
-- Per-workspace permission rules with global fallback
-- `useCurrentWorkspace` on `shell_command` to `cd` into the current workspace and permanently rebind a session to it
-- Permission system with allow/ask/deny per-command patterns
-- Support for shell compositions: pipes, redirects, logical operators
+- Shell sessions
+- Background jobs
+- Per-workspace allow/deny permission rules with global fallback supporting pipes, redirects, and logical operators, plus a read/write access tier so write-classified rules only run in writable workspaces
 - Three-phase command timeout escalation: Ctrl+C → SIGTERM → SIGKILL
 
 ## Prerequisites
@@ -41,7 +38,7 @@ The workspace package has its own documentation at **[johanneslatzel.github.io/l
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE).
+MIT. See [`LICENSE`](LICENSE).
 
 ## Contributing
 

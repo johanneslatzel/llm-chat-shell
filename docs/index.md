@@ -1,12 +1,14 @@
 # Overview
 
-A tightly controlled shell tool for LLM chat, with a permission system similar to opencode's bash tool permissions. Supports shell compositions including pipes (`|`), logical operators (`||`, `&&`), stream redirects, and more.
+A tightly controlled shell tool for the `@johannes.latzel/llm-chat` ecosystem, with a per-workspace permission system similar to opencode's bash tool permissions. Supports shell compositions including pipes (`|`), logical operators (`||`, `&&`), and stream redirects.
 
-- **[Quick Start](quickstart.md)** — install and first chat
-- **[Architecture](architecture.md)** — sentinel protocol, timeout escalation, and class design
-- **[API Reference](api-reference.md)** — tool parameters, configuration classes, and types
-- **[Environment Variables](env.md)** — configuration reference
+## Navigation
+
+- [Quick Start](quickstart.md): install and first chat
+- [Architecture](architecture.md): sentinel protocol, timeout escalation, and class design
+- [API Reference](api-reference.md): tool parameters, configuration classes, and types
+- [Environment Variables](env.md): configuration reference
 
 ## License
 
-MIT — see [`LICENSE`](https://github.com/johanneslatzel/llm-chat-shell/blob/main/LICENSE).
+MIT. See [`LICENSE`](https://github.com/johanneslatzel/llm-chat-shell/blob/main/LICENSE).

@@ -38,12 +38,19 @@ export class SessionQueue {
 
     /**
      * Enqueue a job and, when the session is idle, start the worker loop.
+     * @param cwd - Working directory the job runs in; the executor re-anchors here before running.
      * @returns The queued job record. Foreground callers await its `done`
      *          promise; background callers poll its status via the registries.
      * @throws Error if the session does not exist.
      */
-    submit(sessionId: string, command: string, idleTimeoutMs: number): JobRecord {
-        const record = createJobRecord({ id: randomUUID(), sessionId, command, idleTimeoutMs });
+    submit(sessionId: string, command: string, idleTimeoutMs: number, cwd: string): JobRecord {
+        const record = createJobRecord({
+            id: randomUUID(),
+            sessionId,
+            cwd,
+            command,
+            idleTimeoutMs
+        });
         const shouldStart = this.sessions.enqueue(sessionId, record);
         this.jobs.set(record);
         if (shouldStart) {
@@ -86,6 +93,7 @@ export class SessionQueue {
             let result: ShellCommandResult;
             try {
                 result = await entry.executor.execute(job.command, {
+                    cwd: job.cwd,
                     idleTimeoutMs: job.idleTimeoutMs
                 });
             } catch (error) {

@@ -1,6 +1,11 @@
 import { resolve, sep } from 'node:path';
 import picomatch from 'picomatch';
-import { PermissionAction, type WorkspacePermissions } from './types.js';
+import {
+    PermissionAction,
+    PermissionAccess,
+    PermissionDenyReason,
+    type WorkspacePermissions
+} from './types.js';
 import type { ShellConfiguration } from './config.js';
 
 /**
@@ -227,6 +232,8 @@ export interface PermissionCheckResult {
     action: PermissionAction;
     /** The individual subcommands that were checked. */
     subcommands: string[];
+    /** Why the command was denied; present when `action` is deny. */
+    denyReason?: PermissionDenyReason;
 }
 
 /**
@@ -295,12 +302,16 @@ export function workspaceForPath(path: string, accessRoots: readonly string[]): 
  */
 export class PermissionSystem {
     private resolve: (workspaceRoot: string) => WorkspacePermissions;
+    private readonly canWrite: (workspaceRoot: string) => boolean;
 
     /**
      * @param config - Shell configuration providing per-workspace and global permission settings.
+     * @param canWrite - Optional predicate reporting whether a workspace root grants write access.
+     *                   When omitted, write-classified rules are always satisfiable (legacy behavior).
      */
-    constructor(config: ShellConfiguration) {
+    constructor(config: ShellConfiguration, canWrite?: (workspaceRoot: string) => boolean) {
         this.resolve = (workspaceRoot) => config.resolvePermissions(workspaceRoot);
+        this.canWrite = canWrite ?? (() => true);
     }
 
     /**
@@ -311,7 +322,8 @@ export class PermissionSystem {
      * @returns The permission check result with action and parsed subcommands.
      */
     check(command: string, workspaceRoot?: string): PermissionCheckResult {
-        const perms = this.resolve(workspaceRoot ?? '');
+        const root = workspaceRoot ?? '';
+        const perms = this.resolve(root);
         const subcommands = parseSubcommands(command);
 
         if (subcommands.length === 0) {
@@ -319,9 +331,13 @@ export class PermissionSystem {
         }
 
         for (const sub of subcommands) {
-            const action = this.checkSubcommand(sub, perms);
-            if (action === PermissionAction.Deny) {
-                return { action: PermissionAction.Deny, subcommands };
+            const result = this.checkSubcommand(sub, perms, root);
+            if (result.action === PermissionAction.Deny) {
+                return {
+                    action: PermissionAction.Deny,
+                    subcommands,
+                    ...(result.denyReason !== undefined ? { denyReason: result.denyReason } : {})
+                };
             }
         }
 
@@ -333,19 +349,25 @@ export class PermissionSystem {
      *
      * Collects all rules whose pattern matches the subcommand, then sorts
      * them by specificity (see class doc). Returns the action of the most
-     * specific rule, or the default action if no rules match.
+     * specific rule, or the default action if no rules match. A winning
+     * allow rule whose access level the workspace cannot satisfy (a write
+     * rule in a read-only workspace) is denied with reason `'write-access'`.
      */
-    private checkSubcommand(subcommand: string, perms: WorkspacePermissions): PermissionAction {
+    private checkSubcommand(
+        subcommand: string,
+        perms: WorkspacePermissions,
+        workspaceRoot: string
+    ): { action: PermissionAction; denyReason?: PermissionDenyReason } {
         const matchingRules = perms.permissionRules
             .map((rule, index) => ({ rule, index }))
             .filter(({ rule }) => matchesPattern(subcommand, rule.pattern));
 
         if (matchingRules.length === 0) {
-            return perms.defaultPermission;
+            return { action: perms.defaultPermission };
         }
 
         if (matchingRules.length === 1) {
-            return matchingRules[0]!.rule.action;
+            return this.decide(matchingRules[0]!.rule, workspaceRoot);
         }
 
         matchingRules.sort((a, b) => {
@@ -366,6 +388,29 @@ export class PermissionSystem {
             return a.index - b.index;
         });
 
-        return matchingRules[0]!.rule.action;
+        return this.decide(matchingRules[0]!.rule, workspaceRoot);
+    }
+
+    /**
+     * Apply a single winning rule to a subcommand. An allow rule requiring
+     * write access is denied when the workspace root is not writable.
+     */
+    private decide(
+        rule: { pattern: string; action: PermissionAction; access?: PermissionAccess },
+        workspaceRoot: string
+    ): { action: PermissionAction; denyReason?: PermissionDenyReason } {
+        if (
+            rule.action === PermissionAction.Allow &&
+            rule.access === PermissionAccess.Write &&
+            !this.canWrite(workspaceRoot)
+        ) {
+            return { action: PermissionAction.Deny, denyReason: PermissionDenyReason.WriteAccess };
+        }
+        return {
+            action: rule.action,
+            ...(rule.action === PermissionAction.Deny
+                ? { denyReason: PermissionDenyReason.Pattern }
+                : {})
+        };
     }
 }

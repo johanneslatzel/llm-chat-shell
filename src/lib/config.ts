@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { envOptionalString, envInt } from '../../lib/env.js';
+import { envOptionalString, envInt } from './env.js';
 import {
     PermissionAction,
+    PermissionAccess,
     type PermissionRule,
     type ShellConfigFile,
     type WorkspacePermissions
@@ -23,6 +24,14 @@ function parsePermissionAction(value: unknown, path: string): PermissionAction {
     throw new Error(`${path} must be 'allow' or 'deny', got ${JSON.stringify(value)}`);
 }
 
+function parsePermissionAccess(value: unknown, path: string): PermissionAccess | undefined {
+    if (value === undefined) return undefined;
+    if (value === PermissionAccess.Read || value === PermissionAccess.Write) {
+        return value;
+    }
+    throw new Error(`${path} must be 'read' or 'write', got ${JSON.stringify(value)}`);
+}
+
 function parsePermissionRules(value: unknown, path: string): PermissionRule[] {
     if (!Array.isArray(value)) {
         throw new Error(`${path} must be an array of permission rules`);
@@ -31,11 +40,15 @@ function parsePermissionRules(value: unknown, path: string): PermissionRule[] {
         if (rule === null || typeof rule !== 'object' || Array.isArray(rule)) {
             throw new Error(`${path}[${index}] must be an object with 'pattern' and 'action'`);
         }
-        const { pattern, action } = rule as Record<string, unknown>;
+        const { pattern, action, access } = rule as Record<string, unknown>;
         if (typeof pattern !== 'string') {
             throw new Error(`${path}[${index}].pattern must be a string`);
         }
-        return { pattern, action: parsePermissionAction(action, `${path}[${index}].action`) };
+        const parsedAction = parsePermissionAction(action, `${path}[${index}].action`);
+        const parsedAccess = parsePermissionAccess(access, `${path}[${index}].access`);
+        return parsedAccess === undefined
+            ? { pattern, action: parsedAction }
+            : { pattern, action: parsedAction, access: parsedAccess };
     });
 }
 

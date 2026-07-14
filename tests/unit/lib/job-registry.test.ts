@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { createJobRecord, JobRegistry } from '../../../src/tools/shell/job-registry.js';
-import { ShellJobStatus } from '../../../src/tools/shell/types.js';
-import type { ShellCommandResult } from '../../../src/tools/shell/types.js';
+import { createJobRecord, JobRegistry } from '../../../src/lib/job-registry.js';
+import { ShellJobStatus } from '../../../src/lib/types.js';
+import type { ShellCommandResult } from '../../../src/lib/types.js';
 
 const okResult: ShellCommandResult = {
     stdout: 'out',
@@ -12,7 +12,13 @@ const okResult: ShellCommandResult = {
 };
 
 function makeRecord(id: string, sessionId = 's1'): ReturnType<typeof createJobRecord> {
-    return createJobRecord({ id, sessionId, command: `cmd-${id}`, idleTimeoutMs: 30000 });
+    return createJobRecord({
+        id,
+        sessionId,
+        cwd: '/work',
+        command: `cmd-${id}`,
+        idleTimeoutMs: 30000
+    });
 }
 
 describe('createJobRecord', () => {

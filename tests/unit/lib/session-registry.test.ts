@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { Workspace, DirectoryConfiguration, AccessType } from '@johannes.latzel/llm-chat-workspace';
-import { SessionRegistry } from '../../../src/tools/shell/session-registry.js';
-import type { SessionEntry } from '../../../src/tools/shell/session-registry.js';
-import { createJobRecord, JobRegistry } from '../../../src/tools/shell/job-registry.js';
-import { ShellConfiguration } from '../../../src/tools/shell/config.js';
-import type { ShellCommandResult, ShellExecutor, ShellExecutorFactory } from '../../../src/tools/shell/types.js';
+import { SessionRegistry } from '../../../src/lib/session-registry.js';
+import type { SessionEntry } from '../../../src/lib/session-registry.js';
+import { createJobRecord, JobRegistry } from '../../../src/lib/job-registry.js';
+import { ShellConfiguration } from '../../../src/lib/config.js';
+import type { ShellCommandResult, ShellExecutor, ShellExecutorFactory } from '../../../src/lib/types.js';
 
 class MockExecutor implements ShellExecutor {
     constructor(private readonly alive = true) {}
@@ -57,7 +57,13 @@ function makeRegistry(maxSessions = 10) {
 }
 
 function queuedRecord(id: string, sessionId: string): ReturnType<typeof createJobRecord> {
-    return createJobRecord({ id, sessionId, command: `cmd-${id}`, idleTimeoutMs: 30000 });
+    return createJobRecord({
+        id,
+        sessionId,
+        cwd: '/work',
+        command: `cmd-${id}`,
+        idleTimeoutMs: 30000
+    });
 }
 
 describe('SessionRegistry', () => {
@@ -94,11 +100,12 @@ describe('SessionRegistry', () => {
         await expect(registry.create()).rejects.toThrow('Maximum sessions reached (1)');
     });
 
-    it('rebinds a session to a different workspace root', async () => {
+    it('rebinds a session to a different workspace root and cwd', async () => {
         const { registry } = makeRegistry();
         const id = await registry.create();
-        registry.rebind(id, '/other-root');
+        registry.rebind(id, '/other-root', '/other-cwd');
         expect(registry.getWorkspaceRoot(id)).toBe('/other-root');
+        expect(registry.getCwd(id)).toBe('/other-cwd');
     });
 
     it('throws descriptive errors for unknown sessions', async () => {
@@ -106,7 +113,7 @@ describe('SessionRegistry', () => {
         expect(registry.get('nope')).toBeUndefined();
         expect(() => registry.require('nope')).toThrow('Session not found: nope');
         expect(() => registry.getWorkspaceRoot('nope')).toThrow('Session not found: nope');
-        expect(() => registry.rebind('nope', '/x')).toThrow('Session not found: nope');
+        expect(() => registry.rebind('nope', '/x', '/y')).toThrow('Session not found: nope');
         expect(registry.remove('nope')).toBeUndefined();
         expect(registry.touch('nope')).toBeUndefined();
         expect(registry.dequeue('nope')).toBeUndefined();
@@ -206,6 +213,7 @@ describe('SessionRegistry', () => {
         const fake: SessionEntry = {
             executor: new MockExecutor(),
             workspaceRoot: '',
+            cwd: '',
             lastUsedMs: 0,
             queue: [],
             processing: false

@@ -9,7 +9,7 @@ npm install @johannes.latzel/llm-chat-shell
 ## Quick setup
 
 ```typescript
-import { ShellPackage } from 'llm-chat-shell';
+import { ShellPackage } from '@johannes.latzel/llm-chat-shell';
 
 const pkg = new ShellPackage();
 service.tools().add(pkg);
@@ -17,10 +17,10 @@ service.tools().add(pkg);
 
 ## Permission configuration
 
-Allow git commands, deny destructive operations, and prompt for everything else:
+Example: Allow git commands and `ls`, deny `rm`, and deny everything else:
 
 ```typescript
-import { ShellPackage, ShellConfiguration, PermissionAction } from 'llm-chat-shell';
+import { ShellPackage, ShellConfiguration, PermissionAction } from '@johannes.latzel/llm-chat-shell';
 
 const config = new ShellConfiguration();
 config.defaultPermission = PermissionAction.Deny;
@@ -41,7 +41,7 @@ The package manages sessions automatically. For explicit lifecycle control:
 The workspace is provided by the [`@johannes.latzel/llm-chat-workspace`](https://johanneslatzel.github.io/llm-chat-workspace/) package:
 
 ```typescript
-import { ShellPackage, ShellConfiguration, ShellSessionManager, BashShellExecutor } from 'llm-chat-shell';
+import { ShellPackage, ShellConfiguration, ShellSessionManager, BashShellExecutor } from '@johannes.latzel/llm-chat-shell';
 import { Workspace, DirectoryConfiguration } from '@johannes.latzel/llm-chat-workspace';
 
 const config = new ShellConfiguration();
@@ -66,7 +66,7 @@ await manager.close();
 When using with an MCP server, the client can pass a `cwd` to `shell_create` to run commands in a specific directory:
 
 ```typescript
-import { ShellPackage, ShellConfiguration } from 'llm-chat-shell';
+import { ShellPackage, ShellConfiguration } from '@johannes.latzel/llm-chat-shell';
 
 const config = new ShellConfiguration();
 

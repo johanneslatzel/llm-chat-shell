@@ -2,16 +2,16 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Workspace, DirectoryConfiguration, AccessType } from '@johannes.latzel/llm-chat-workspace';
-import { ShellSessionManager } from '../../../src/tools/shell/session-manager.js';
-import { BashShellExecutor } from '../../../src/tools/shell/bash-executor.js';
-import { ShellConfiguration } from '../../../src/tools/shell/config.js';
+import { ShellSessionManager } from '../../../src/lib/session-manager.js';
+import { BashShellExecutor } from '../../../src/lib/bash-executor.js';
+import { ShellConfiguration } from '../../../src/lib/config.js';
 import {
     ShellJobStatus,
     type ShellCommandResult,
     type ShellExecuteOptions,
     type ShellExecutor
-} from '../../../src/tools/shell/types.js';
-import type { ShellExecutorFactory } from '../../../src/tools/shell/session-manager.js';
+} from '../../../src/lib/types.js';
+import type { ShellExecutorFactory } from '../../../src/lib/session-manager.js';
 
 class MockExecutor implements ShellExecutor {
     constructor(
@@ -88,7 +88,9 @@ function createFactory(): ShellExecutorFactory & { created: ShellExecutor[] } {
     return {
         created,
         create: async (cwd?: string) => {
-            const exec = new BashShellExecutor(cwd ? { ...new ShellConfiguration(), cwd } : new ShellConfiguration());
+            const exec = new BashShellExecutor(
+                cwd ? { ...new ShellConfiguration(), cwd } : new ShellConfiguration()
+            );
             created.push(exec);
             return exec;
         }
@@ -107,7 +109,7 @@ describe('ShellSessionManager', () => {
 
     afterEach(async () => {
         if (manager !== undefined) {
-        await manager.close();
+            await manager.close();
         }
     });
 
@@ -1135,7 +1137,7 @@ describe('ShellSessionManager', () => {
             expect(await manager.getSessionWorkspaceRoot(id)).toBe(nested);
         });
 
-        it('rebindSession permanently changes the bound root', async () => {
+        it('rebindSession permanently changes the bound root and cwd', async () => {
             const cfg = createConfig();
             const workspace = createWorkspace(process.cwd());
             manager = new ShellSessionManager(
@@ -1144,8 +1146,9 @@ describe('ShellSessionManager', () => {
                 workspace
             );
             const id = await manager.createSession();
-            await manager.rebindSession(id, '/other-root');
+            await manager.rebindSession(id, '/other-root', '/other-cwd');
             expect(await manager.getSessionWorkspaceRoot(id)).toBe('/other-root');
+            expect(await manager.getSessionCwd(id)).toBe('/other-cwd');
         });
 
         it('throws for unknown session in getSessionWorkspaceRoot', async () => {
@@ -1158,6 +1161,16 @@ describe('ShellSessionManager', () => {
             await expect(manager.getSessionWorkspaceRoot('bad-id')).rejects.toThrow('Session not found');
         });
 
+        it('throws for unknown session in getSessionCwd', async () => {
+            const cfg = createConfig();
+            manager = new ShellSessionManager(
+                { create: async () => new MockExecutor() },
+                cfg,
+                createWorkspace(process.cwd())
+            );
+            await expect(manager.getSessionCwd('bad-id')).rejects.toThrow('Session not found');
+        });
+
         it('throws for unknown session in rebindSession', async () => {
             const cfg = createConfig();
             manager = new ShellSessionManager(
@@ -1165,7 +1178,9 @@ describe('ShellSessionManager', () => {
                 cfg,
                 createWorkspace(process.cwd())
             );
-            await expect(manager.rebindSession('bad-id', '/x')).rejects.toThrow('Session not found');
+            await expect(manager.rebindSession('bad-id', '/x', '/y')).rejects.toThrow(
+                'Session not found'
+            );
         });
     });
 

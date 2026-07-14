@@ -2,7 +2,7 @@
 
 ## Overview
 
-`llm-chat-shell` provides a tightly controlled shell tool for LLM chat applications. It implements a permission system similar to opencode's bash tool permissions, allowing shell compositions including pipes (`|`), logical operators (`||`, `&&`), stream redirects, and more.
+`@johannes.latzel/llm-chat-shell` provides a tightly controlled shell tool for LLM chat applications. It implements a permission system similar to opencode's bash tool permissions, allowing shell compositions including pipes (`|`), logical operators (`||`, `&&`), and stream redirects.
 
 ## Design
 
@@ -12,15 +12,14 @@ Each tool extends `Tool` from `llm-chat`:
 
 1. Constructor calls `super(name, description, params)` with a `ToolParameters` instance
 2. `onExecute()` validates parameters, performs the operation, and returns `PartialToolResult`
-3. All errors are caught and returned as plain-string messages — tools never throw
+3. All errors are caught and returned as plain-string messages; tools never throw
 
 ### Permission System
 
-Commands are evaluated against a permission system with three levels:
+Commands are evaluated against a permission system with two levels:
 
-- `allow` — execute without prompting
-- `ask` — prompt user for confirmation
-- `deny` — block execution
+- `allow`: execute without prompting
+- `deny`: block execution
 
 Permissions support pattern matching on command strings, with support for shell compositions.
 
@@ -41,7 +40,7 @@ interface ToolPackage {
 
 ## Dependencies
 
-- `llm-chat` — framework providing `Tool`, `ToolParameters`, etc.
+- `llm-chat`: framework providing `Tool`, `ToolParameters`, etc.
 
 ## Sentinel Protocol
 
@@ -51,7 +50,7 @@ The `SentinelProtocol` class solves both problems:
 
 1. Generates a unique UUID-based sentinel string
 2. Sends the user command + `echo "<sentinel>"` to bash's stdin
-3. Watches stdout — non-matching lines are collected as output
+3. Watches stdout; non-matching lines are collected as output
 4. When the sentinel line appears, extracts the exit code from the expanded `$?`
 5. Resolves the promise with the exit code
 
@@ -77,13 +76,23 @@ While Phase 1 is still pending, any new output resets the idle timer; once the e
 
 ## Session Manager
 
-`ShellSessionManager` composes three lock-free modules — a `JobRegistry` (the bounded store of every submitted job, live or finished), a `SessionRegistry` (the live sessions plus the tombstones of dead ones), and a `SessionQueue` (the per-session FIFO worker loop) — and owns the single mutex that serializes the operations spanning an `await`: session creation (the factory call is awaited while holding the lock, so concurrent creates cannot both pass the `maxSessions` check), teardown, and expiry. The components themselves hold no lock; their operations are synchronous and therefore atomic under the single-threaded event loop, so they interleave safely with the manager's mutex-protected blocks. The worker loop runs outside the mutex by design: its per-job bookkeeping is a single synchronous block (it must never gain an `await` in the middle), and each session's `processing` flag guarantees at most one worker. Executor close is single-owner: whoever removes a session from the registry closes its executor — a teardown caller (`close`, `closeSession`, idle expiry) or the worker, on a session that died naturally. The manager coordinates the modules: the worker drains each session's queue one job at a time (a shell executes a single command at a time), and background submissions return immediately with a job to poll. Completed and failed jobs stay queryable by ID until the oldest are evicted FIFO beyond the job cap; queued and running jobs are never evicted.
+`ShellSessionManager` composes three lock-free modules: a `JobRegistry` (the bounded store of every submitted job, live or finished), a `SessionRegistry` (the live sessions plus the tombstones of dead ones), and a `SessionQueue` (the per-session FIFO worker loop). It owns the single mutex that serializes the operations spanning an `await`: session creation (the factory call is awaited while holding the lock, so concurrent creates cannot both pass the `maxSessions` check), teardown, and expiry.
+
+The components themselves hold no lock. Their operations are synchronous and therefore atomic under the single-threaded event loop, so they interleave safely with the manager's mutex-protected blocks.
+
+The worker loop runs outside the mutex by design. Its per-job bookkeeping is a single synchronous block (it must never gain an `await` in the middle), and each session's `processing` flag guarantees at most one worker.
+
+Executor close is single-owner: whoever removes a session from the registry closes its executor, either a teardown caller (`close`, `closeSession`, idle expiry) or the worker on a session that died naturally.
+
+The worker drains each session's queue one job at a time (a shell executes a single command at a time), and background submissions return immediately with a job to poll. Completed and failed jobs stay queryable by ID until the oldest are evicted FIFO beyond the job cap; queued and running jobs are never evicted.
+
+Every job carries its own working directory (the session's cwd, or the current workspace with `useCurrentWorkspace`). Before running a job, the executor re-anchors the persistent shell into the job's directory via a `cd` prefix, so a queued command always runs in the directory it was submitted for, regardless of where earlier jobs left the shell. A `cd` inside a command only affects that command; it never changes the session's tracked cwd.
 
 Beyond enforcing `maxSessions`, the registry keeps itself clean so session slots are never permanently lost:
 
-- **Pruning** — before creating a session, sessions whose underlying process has exited are removed and tombstoned.
-- **Post-command cleanup** — after a command that timed out or killed the shell, the session is removed and tombstoned; close failures are swallowed.
-- **Idle expiry** — a background sweeper ticks every `sessionTimeout / 2` (min 1s, `.unref()`ed) and closes sessions idle for at least `sessionTimeout`. In-flight sessions are never expired. The sweeper is skipped when `sessionTimeout` is `<= 0` or non-finite.
+- **Pruning:** before creating a session, sessions whose underlying process has exited are removed and tombstoned.
+- **Post-command cleanup:** after a command that timed out or killed the shell, the session is removed and tombstoned; close failures are swallowed.
+- **Idle expiry:** a background sweeper ticks every `sessionTimeout / 2` (min 1s, `.unref()`ed) and closes sessions idle for at least `sessionTimeout`. In-flight sessions are never expired. The sweeper is skipped when `sessionTimeout` is `<= 0` or non-finite.
 
 Dead sessions are recorded as **tombstones** (bounded, FIFO, cap 100) so stale session IDs keep producing a descriptive error instead of a bare "not found", e.g.:
 

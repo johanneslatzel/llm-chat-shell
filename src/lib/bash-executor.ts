@@ -19,6 +19,11 @@ export interface BashProcessConfig {
 /** UUID v4 source pattern (no anchors) for matching sentinels. */
 const UUID_V4_SOURCE = '[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}';
 
+/** Single-quote a shell path so it can be safely embedded in a command. */
+function shellQuoteSingle(value: string): string {
+    return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
 /**
  * Sentinel protocol for detecting command completion and capturing exit codes.
  * Generates a unique sentinel, listens for it in stdout, and resolves with the exit code.
@@ -259,9 +264,15 @@ export class BashShellExecutor implements ShellExecutor {
         );
 
         // Step 2: Send command to bash, then send echo with sentinel.
+        // When a cwd is given, re-anchor the persistent shell into it first, so
+        // the command runs in the directory its job was submitted for.
+        const commandToRun =
+            options?.cwd !== undefined
+                ? `cd ${shellQuoteSingle(options.cwd)} && ${command}`
+                : command;
         // Bash will execute them sequentially: run the command, then echo the sentinel.
         // When bash echoes it, `$?` is expanded to the command's exit code.
-        this.proc.stdin!.write(`${command}\n`);
+        this.proc.stdin!.write(`${commandToRun}\n`);
         this.proc.stdin!.write(`echo "${this.sentinel.sentinel}"\n`);
 
         // Step 3: Idle-based timeout escalation (Ctrl+C → SIGTERM → SIGKILL).

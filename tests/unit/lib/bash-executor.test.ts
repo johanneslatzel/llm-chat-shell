@@ -1,11 +1,12 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { spawn } from 'node:child_process';
+import * as fs from 'node:fs';
 import {
     BashShellExecutor,
     BashShellExecutorFactory,
     TimeoutEscalation
-} from '../../../src/tools/shell/bash-executor.js';
-import { ShellConfiguration } from '../../../src/tools/shell/config.js';
+} from '../../../src/lib/bash-executor.js';
+import { ShellConfiguration } from '../../../src/lib/config.js';
 
 describe('BashShellExecutor', () => {
     let executor: BashShellExecutor;
@@ -47,6 +48,26 @@ describe('BashShellExecutor', () => {
         await executor.execute('cd /tmp');
         const result = await executor.execute('pwd');
         expect(result.stdout).toBe('/tmp');
+    });
+
+    it('re-anchors into the cwd option before running the command', async () => {
+        executor = new BashShellExecutor(new ShellConfiguration());
+        const result = await executor.execute('pwd', { cwd: '/tmp' });
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toBe('/tmp');
+    });
+
+    it('re-anchors into a cwd containing single quotes', async () => {
+        const dir = '/tmp/it\'s a test';
+        await fs.mkdirSync(dir, { recursive: true });
+        try {
+            executor = new BashShellExecutor(new ShellConfiguration());
+            const result = await executor.execute('pwd', { cwd: dir });
+            expect(result.exitCode).toBe(0);
+            expect(result.stdout).toBe(dir);
+        } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
     });
 
     it('handles multi-line output', async () => {

@@ -6,12 +6,30 @@ export enum PermissionAction {
     Deny = 'deny'
 }
 
+/** Access level a permission rule requires from its workspace. */
+export enum PermissionAccess {
+    /** The rule applies in any accessible workspace (default). */
+    Read = 'read',
+    /** The rule only applies in a workspace with write access. */
+    Write = 'write'
+}
+
+/** Why a shell command was denied. */
+export enum PermissionDenyReason {
+    /** A rule pattern or the default permission denied the command. */
+    Pattern = 'pattern',
+    /** A write-classified rule matched but the workspace root is not writable. */
+    WriteAccess = 'write-access'
+}
+
 /** A single permission rule matching a glob pattern to an action. */
 export interface PermissionRule {
     /** Glob pattern to match against subcommands (e.g. "git *"). */
     pattern: string;
     /** Action to take when the pattern matches. */
     action: PermissionAction;
+    /** Access level required from the workspace. Defaults to {@link PermissionAccess.Read}. */
+    access?: PermissionAccess;
 }
 
 /** Permission settings for a single workspace, keyed by its resolved root path. */
@@ -69,6 +87,8 @@ export interface ShellJob {
     id: string;
     /** Session the job was submitted to. */
     sessionId: string;
+    /** Working directory the job runs in (the shell re-anchors here before running). */
+    cwd: string;
     /** The command the job runs. */
     command: string;
     /** Current execution state. */
@@ -111,6 +131,11 @@ export interface ShellSessionInfo {
 
 /** Options for {@link ShellExecutor.execute}. */
 export interface ShellExecuteOptions {
+    /**
+     * Working directory the command runs in. When provided, the executor
+     * re-anchors the shell into this directory before running the command.
+     */
+    cwd?: string;
     /**
      * Idle timeout in ms (resets on stdout/stderr activity). When omitted or 0,
      * the executor's configured `ctrlCTimeout` applies.
