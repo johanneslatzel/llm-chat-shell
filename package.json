@@ -64,7 +64,7 @@
     },
     "dependencies": {
         "@johannes.latzel/llm-chat": "^0.7.0",
-        "@johannes.latzel/llm-chat-workspace": "^0.1.0",
+        "@johannes.latzel/llm-chat-workspace": "^0.1.1",
         "async-mutex": "^0.5.0",
         "picomatch": "^4.0.5"
     },
