@@ -101,7 +101,8 @@ export function loadShellConfigFile(configFilePath: string): ShellConfigFile {
         raw = readFileSync(resolved, 'utf8');
     } catch (error) {
         throw new Error(
-            `Cannot read shell config file '${configFilePath}': ${(error as Error).message}`
+            `Cannot read shell config file '${configFilePath}': ${(error as Error).message}`,
+            { cause: error }
         );
     }
     let parsed: unknown;
@@ -109,7 +110,8 @@ export function loadShellConfigFile(configFilePath: string): ShellConfigFile {
         parsed = JSON.parse(raw);
     } catch (error) {
         throw new Error(
-            `Invalid JSON in shell config file '${configFilePath}': ${(error as Error).message}`
+            `Invalid JSON in shell config file '${configFilePath}': ${(error as Error).message}`,
+            { cause: error }
         );
     }
     if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {

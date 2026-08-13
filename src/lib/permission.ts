@@ -144,8 +144,6 @@ function stripRedirects(subcommand: string): string {
     let result = subcommand;
 
     for (let changed = true; changed;) {
-        changed = false;
-
         let earliest = -1;
         let earliestLen = 0;
 
