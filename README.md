@@ -34,8 +34,6 @@ npm install @johannes.latzel/llm-chat-shell
 
 Full documentation at **[johanneslatzel.github.io/llm-chat-shell/](https://johanneslatzel.github.io/llm-chat-shell/)**
 
-The workspace package has its own documentation at **[johanneslatzel.github.io/llm-chat-workspace/](https://johanneslatzel.github.io/llm-chat-workspace/)**
-
 ## License
 
 MIT. See [`LICENSE`](LICENSE).
