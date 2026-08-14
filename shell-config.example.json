@@ -1,0 +1,16 @@
+{
+  "globalPermissions": {
+    "defaultPermission": "deny",
+    "permissionRules": [
+      { "pattern": "git *", "action": "allow" },
+      { "pattern": "git push *", "action": "allow", "access": "write" },
+      { "pattern": "rm *", "action": "deny" }
+    ]
+  },
+  "workspacePermissions": {
+    "/path/to/ws-a": {
+      "defaultPermission": "allow",
+      "permissionRules": [{ "pattern": "rm *", "action": "deny" }]
+    }
+  }
+}

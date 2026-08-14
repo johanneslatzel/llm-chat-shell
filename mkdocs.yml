@@ -1,0 +1,31 @@
+site_name: llm-chat-shell
+site_url: https://johanneslatzel.github.io/llm-chat-shell/
+repo_url: https://github.com/johanneslatzel/llm-chat-shell
+theme:
+  name: material
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+nav:
+  - Overview: index.md
+  - Architecture: architecture.md
+  - API Reference: api-reference.md
+  - Environment Variables: env.md
+  - Quick Start: quickstart.md
+  - Workspace Package: https://johanneslatzel.github.io/llm-chat-workspace/
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+plugins:
+  - search
