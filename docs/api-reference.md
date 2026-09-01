@@ -199,29 +199,31 @@ const config = new ShellConfiguration();
 
 ### Timeout properties
 
-| Property | Env Var | Default | Description |
-|----------|---------|---------|-------------|
-| `ctrlCTimeout` | `LLM_CHAT_SHELL_CTRL_C_TIMEOUT` | `30000` | Max idle time (ms) before a command is timed out; the timer resets whenever the command produces output |
-| `sigtermTimeout` | `LLM_CHAT_SHELL_SIGTERM_TIMEOUT` | `5000` | Ms to wait after SIGTERM before escalating to SIGKILL |
-| `killTimeout` | `LLM_CHAT_SHELL_KILL_TIMEOUT` | `5000` | Ms to wait after SIGKILL before giving up |
-| `backgroundTimeout` | `LLM_CHAT_SHELL_BACKGROUND_TIMEOUT` | `3600000` | Idle timeout (ms) for background jobs that do not specify a `timeout`; long silent background jobs are not killed by the short foreground `ctrlCTimeout` |
-| `maxTimeout` | `LLM_CHAT_SHELL_MAX_TIMEOUT` | `3600000` | Upper bound (ms) for LLM-supplied `timeout` values; larger requests are capped to this value. `0` disables the cap |
+Env vars and their defaults are documented in [Environment Variables](env.md).
+
+| Property | Description |
+|----------|-------------|
+| `ctrlCTimeout` | Foreground command idle timeout; the timer resets on each output |
+| `sigtermTimeout` | SIGTERM-to-SIGKILL escalation grace period |
+| `killTimeout` | Grace period after SIGKILL before giving up |
+| `backgroundTimeout` | Fallback idle timeout for background jobs without an explicit `timeout` |
+| `maxTimeout` | Cap applied to an LLM-supplied `timeout`; `0` disables the cap |
 
 ### Session properties
 
-| Property | Env Var | Default | Description |
-|----------|---------|---------|-------------|
-| `maxSessions` | `LLM_CHAT_SHELL_MAX_SESSIONS` | `10` | Max concurrent sessions |
-| `sessionTimeout` | `LLM_CHAT_SHELL_SESSION_TIMEOUT` | `3600000` | Idle session expiry (ms, 1 hour): sessions idle this long are closed by a background sweeper |
+| Property | Description |
+|----------|-------------|
+| `maxSessions` | Concurrent session limit |
+| `sessionTimeout` | Idle expiry for a session; sessions idle this long are closed by the background sweeper |
 
 ### Permission properties
 
-| Property | Env Var | Default | Description |
-|----------|---------|---------|-------------|
-| `configFilePath` | `LLM_CHAT_SHELL_CONFIG` | unset | Path to the strict-JSON permission config file. When set, `defaultPermission`, `permissionRules`, and `workspacePermissions` load from it. |
-| `defaultPermission` | config file `globalPermissions.defaultPermission` | `PermissionAction.Deny` | Global default permission for unmatched commands |
-| `permissionRules` | config file `globalPermissions.permissionRules` | `[]` | Global permission rules. Each rule is `{ pattern, action, access? }`; `access` defaults to `PermissionAccess.Read`. |
-| `workspacePermissions` | config file `workspacePermissions` | `new Map()` | Per-workspace overrides as `Map<resolvedRoot, WorkspacePermissions>`. Programmatic assignments take precedence over the config file. |
+| Property | Description |
+|----------|-------------|
+| `configFilePath` | Path to the strict-JSON permission config file; when set, `defaultPermission`, `permissionRules`, and `workspacePermissions` load from it |
+| `defaultPermission` | Global default action for unmatched commands |
+| `permissionRules` | Global rules; each is `{ pattern, action, access? }`, `access` defaults to `PermissionAccess.Read` |
+| `workspacePermissions` | Per-workspace overrides as `Map<resolvedRoot, WorkspacePermissions>`; programmatic assignment takes precedence over the config file |
 
 The `PermissionSystem` resolves a rule's access tier against the effective workspace root: a `PermissionAccess.Write` rule only grants when the root is writable (via `Workspace.canWrite`), and denies the command otherwise.
 
