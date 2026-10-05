@@ -4,6 +4,7 @@ import { envOptionalString, envInt } from './env.js';
 import {
     PermissionAction,
     PermissionAccess,
+    PermissionType,
     type PermissionRule,
     type ShellConfigFile,
     type WorkspacePermissions
@@ -32,6 +33,14 @@ function parsePermissionAccess(value: unknown, path: string): PermissionAccess |
     throw new Error(`${path} must be 'read' or 'write', got ${JSON.stringify(value)}`);
 }
 
+function parsePermissionType(value: unknown, path: string): PermissionType | undefined {
+    if (value === undefined) return undefined;
+    if (value === PermissionType.Command || value === PermissionType.Redirect) {
+        return value;
+    }
+    throw new Error(`${path} must be 'command' or 'redirect', got ${JSON.stringify(value)}`);
+}
+
 function parsePermissionRules(value: unknown, path: string): PermissionRule[] {
     if (!Array.isArray(value)) {
         throw new Error(`${path} must be an array of permission rules`);
@@ -40,15 +49,19 @@ function parsePermissionRules(value: unknown, path: string): PermissionRule[] {
         if (rule === null || typeof rule !== 'object' || Array.isArray(rule)) {
             throw new Error(`${path}[${index}] must be an object with 'pattern' and 'action'`);
         }
-        const { pattern, action, access } = rule as Record<string, unknown>;
+        const { pattern, action, access, type } = rule as Record<string, unknown>;
         if (typeof pattern !== 'string') {
             throw new Error(`${path}[${index}].pattern must be a string`);
         }
         const parsedAction = parsePermissionAction(action, `${path}[${index}].action`);
         const parsedAccess = parsePermissionAccess(access, `${path}[${index}].access`);
-        return parsedAccess === undefined
-            ? { pattern, action: parsedAction }
-            : { pattern, action: parsedAction, access: parsedAccess };
+        const parsedType = parsePermissionType(type, `${path}[${index}].type`);
+        return {
+            pattern,
+            action: parsedAction,
+            ...(parsedAccess === undefined ? {} : { access: parsedAccess }),
+            ...(parsedType === undefined ? {} : { type: parsedType })
+        };
     });
 }
 
@@ -62,6 +75,12 @@ function parseWorkspacePermissionsEntry(value: unknown, path: string): Workspace
             entryObject.defaultPermission,
             `${path}.defaultPermission`
         ),
+        defaultType:
+            parsePermissionType(entryObject.defaultType, `${path}.defaultType`) ??
+            PermissionType.Command,
+        defaultAccess:
+            parsePermissionAccess(entryObject.defaultAccess, `${path}.defaultAccess`) ??
+            PermissionAccess.Read,
         permissionRules: parsePermissionRules(
             entryObject.permissionRules,
             `${path}.permissionRules`
@@ -206,13 +225,21 @@ export class ShellConfiguration {
     defaultPermission: PermissionAction =
         this.configFile.globalPermissions?.defaultPermission ?? PermissionAction.Deny;
 
-    /** Global permission rules (config file: `globalPermissions.permissionRules`). */
+    /** Global permission rules for command cores and redirect targets (config file: `globalPermissions.permissionRules`). */
     permissionRules: PermissionRule[] = this.configFile.globalPermissions?.permissionRules ?? [];
+
+    /** Default rule type for rules without an explicit type (config file: `globalPermissions.defaultType`, default: Command). */
+    defaultType: PermissionType =
+        this.configFile.globalPermissions?.defaultType ?? PermissionType.Command;
+
+    /** Default access level for rules without an explicit access (config file: `globalPermissions.defaultAccess`, default: Read). */
+    defaultAccess: PermissionAccess =
+        this.configFile.globalPermissions?.defaultAccess ?? PermissionAccess.Read;
 
     /**
      * Per-workspace permission settings keyed by resolved workspace root path
      * (config file: `workspacePermissions` — an object mapping each workspace
-     * root to `{ defaultPermission, permissionRules }`).
+     * root to `{ defaultPermission, defaultType, defaultAccess, permissionRules }`).
      * Programmatic assignments take precedence over the config file.
      */
     workspacePermissions: Map<string, WorkspacePermissions> = (() => {
@@ -226,15 +253,21 @@ export class ShellConfiguration {
 
     /**
      * Resolve the effective permission settings for a workspace root.
-     * Falls back to the global {@link defaultPermission} / {@link permissionRules}
-     * when the root has no per-workspace entry.
+     * Falls back to the global {@link defaultPermission} / {@link defaultType} /
+     * {@link defaultAccess} / {@link permissionRules} when the root has no
+     * per-workspace entry.
      *
      * @param workspaceRoot - Resolved workspace root path ('' or undefined uses the global settings).
      */
     resolvePermissions(workspaceRoot: string): WorkspacePermissions {
         const found = this.workspacePermissions.get(resolve(workspaceRoot));
         if (found !== undefined) return found;
-        return { defaultPermission: this.defaultPermission, permissionRules: this.permissionRules };
+        return {
+            defaultPermission: this.defaultPermission,
+            defaultType: this.defaultType,
+            defaultAccess: this.defaultAccess,
+            permissionRules: this.permissionRules
+        };
     }
 
     /**

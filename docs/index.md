@@ -5,9 +5,10 @@ A tightly controlled shell tool for the `@johannes.latzel/llm-chat` ecosystem, w
 ## Navigation
 
 - [Quick Start](quickstart.md): install and first chat
+- [Configuration](configuration.md): permission config file schema and rules
 - [Architecture](architecture.md): sentinel protocol, timeout escalation, and class design
 - [API Reference](api-reference.md): tool parameters, configuration classes, and types
-- [Environment Variables](env.md): configuration reference
+- [Environment Variables](env.md): environment variables
 
 ## License
 

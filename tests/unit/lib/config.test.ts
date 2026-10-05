@@ -6,7 +6,7 @@ import {
     ShellConfiguration,
     loadShellConfigFile
 } from '../../../src/lib/config.js';
-import { PermissionAction, PermissionAccess } from '../../../src/lib/types.js';
+import { PermissionAction, PermissionAccess, PermissionType } from '../../../src/lib/types.js';
 
 function clearEnv() {
     delete process.env['LLM_CHAT_SHELL_CTRL_C_TIMEOUT'];
@@ -48,6 +48,8 @@ describe('ShellConfiguration', () => {
         expect(config.backgroundTimeout).toBe(3600000);
         expect(config.maxTimeout).toBe(3600000);
         expect(config.defaultPermission).toBe(PermissionAction.Deny);
+        expect(config.defaultType).toBe(PermissionType.Command);
+        expect(config.defaultAccess).toBe(PermissionAccess.Read);
         expect(config.permissionRules).toEqual([]);
         expect(config.workspacePermissions.size).toBe(0);
     });
@@ -162,10 +164,14 @@ describe('ShellConfiguration', () => {
             ]);
             expect(config.workspacePermissions.get('/ws/a')).toEqual({
                 defaultPermission: 'deny',
+                defaultType: 'command',
+                defaultAccess: 'read',
                 permissionRules: [{ pattern: 'git *', action: 'deny' }]
             });
             expect(config.workspacePermissions.get('/ws/b')).toEqual({
                 defaultPermission: 'allow',
+                defaultType: 'command',
+                defaultAccess: 'read',
                 permissionRules: []
             });
         });
@@ -184,6 +190,8 @@ describe('ShellConfiguration', () => {
             expect(config.permissionRules).toEqual([]);
             expect(config.workspacePermissions.get('/ws/a')).toEqual({
                 defaultPermission: 'allow',
+                defaultType: 'command',
+                defaultAccess: 'read',
                 permissionRules: []
             });
         });
@@ -356,6 +364,92 @@ describe('ShellConfiguration', () => {
             process.env['LLM_CHAT_SHELL_CONFIG'] = file;
             expect(() => new ShellConfiguration()).toThrow(/permissionRules must be an array/);
         });
+
+        it('parses a rule type of "redirect"', () => {
+            const file = writeConfig(
+                JSON.stringify({
+                    globalPermissions: {
+                        defaultPermission: 'deny',
+                        permissionRules: [
+                            { pattern: '**/**', action: 'allow', access: 'write', type: 'redirect' }
+                        ]
+                    }
+                })
+            );
+            process.env['LLM_CHAT_SHELL_CONFIG'] = file;
+            const config = new ShellConfiguration();
+            expect(config.permissionRules).toEqual([
+                {
+                    pattern: '**/**',
+                    action: PermissionAction.Allow,
+                    access: PermissionAccess.Write,
+                    type: PermissionType.Redirect
+                }
+            ]);
+        });
+
+        it('omits type on a rule when it is not provided', () => {
+            const file = writeConfig(
+                '{ "globalPermissions": { "defaultPermission": "deny", "permissionRules": [{ "pattern": "git *", "action": "allow" }] } }'
+            );
+            process.env['LLM_CHAT_SHELL_CONFIG'] = file;
+            const config = new ShellConfiguration();
+            expect(config.permissionRules).toEqual([{ pattern: 'git *', action: PermissionAction.Allow }]);
+        });
+
+        it('throws when a rule has an invalid type', () => {
+            const file = writeConfig(
+                '{ "globalPermissions": { "defaultPermission": "deny", "permissionRules": [{ "pattern": "git *", "action": "allow", "type": "maybe" }] } }'
+            );
+            process.env['LLM_CHAT_SHELL_CONFIG'] = file;
+            expect(() => new ShellConfiguration()).toThrow(/type must be 'command' or 'redirect'/);
+        });
+
+        it('parses defaultType and defaultAccess per workspace', () => {
+            const file = writeConfig(
+                JSON.stringify({
+                    workspacePermissions: {
+                        '/ws/a': {
+                            defaultPermission: 'deny',
+                            defaultType: 'redirect',
+                            defaultAccess: 'write',
+                            permissionRules: [{ pattern: 'out*', action: 'allow' }]
+                        },
+                        '/ws/b': { defaultPermission: 'deny', permissionRules: [] }
+                    }
+                })
+            );
+            process.env['LLM_CHAT_SHELL_CONFIG'] = file;
+            const config = new ShellConfiguration();
+            expect(config.workspacePermissions.get('/ws/a')).toEqual({
+                defaultPermission: 'deny',
+                defaultType: 'redirect',
+                defaultAccess: 'write',
+                permissionRules: [{ pattern: 'out*', action: 'allow' }]
+            });
+            expect(config.workspacePermissions.get('/ws/b')).toEqual({
+                defaultPermission: 'deny',
+                defaultType: 'command',
+                defaultAccess: 'read',
+                permissionRules: []
+            });
+        });
+
+        it('throws when defaultType is invalid', () => {
+            const file = writeConfig(
+                '{ "globalPermissions": { "defaultPermission": "deny", "defaultType": "maybe", "permissionRules": [] } }'
+            );
+            process.env['LLM_CHAT_SHELL_CONFIG'] = file;
+            expect(() => new ShellConfiguration()).toThrow(/defaultType must be 'command' or 'redirect'/);
+        });
+
+        it('throws when defaultAccess is invalid', () => {
+            const file = writeConfig(
+                '{ "globalPermissions": { "defaultPermission": "deny", "defaultAccess": "maybe", "permissionRules": [] } }'
+            );
+            process.env['LLM_CHAT_SHELL_CONFIG'] = file;
+            expect(() => new ShellConfiguration()).toThrow(/defaultAccess must be 'read' or 'write'/);
+        });
     });
 
     describe('resolvePermissions', () => {
@@ -364,9 +458,13 @@ describe('ShellConfiguration', () => {
             config.defaultPermission = PermissionAction.Allow;
             config.workspacePermissions.set('/ws/a', {
                 defaultPermission: PermissionAction.Deny,
+                defaultType: PermissionType.Command,
+                defaultAccess: PermissionAccess.Read,
                 permissionRules: []
             });
             expect(config.resolvePermissions('/ws/a').defaultPermission).toBe(PermissionAction.Deny);
+            expect(config.resolvePermissions('/ws/a').defaultType).toBe(PermissionType.Command);
+            expect(config.resolvePermissions('/ws/a').defaultAccess).toBe(PermissionAccess.Read);
         });
 
         it('falls back to global settings for an unknown root', () => {
@@ -456,7 +554,37 @@ describe('loadShellConfigFile', () => {
         expect(loadShellConfigFile(file)).toEqual({
             globalPermissions: {
                 defaultPermission: 'deny',
+                defaultType: 'command',
+                defaultAccess: 'read',
                 permissionRules: [{ pattern: 'git *', action: 'allow' }]
+            }
+        });
+    });
+
+    it('loads the repo shell-config.example.json', () => {
+        const file = join(process.cwd(), 'shell-config.example.json');
+        expect(loadShellConfigFile(file)).toEqual({
+            globalPermissions: {
+                defaultPermission: 'deny',
+                defaultType: 'command',
+                defaultAccess: 'read',
+                permissionRules: [
+                    { pattern: 'git *', action: 'allow' },
+                    { pattern: 'git push *', action: 'allow', access: 'write' },
+                    { pattern: 'rm *', action: 'deny' },
+                    { pattern: '/tmp/**', action: 'allow', access: 'write', type: 'redirect' }
+                ]
+            },
+            workspacePermissions: {
+                '/path/to/ws-a': {
+                    defaultPermission: 'allow',
+                    defaultType: 'command',
+                    defaultAccess: 'read',
+                    permissionRules: [
+                        { pattern: 'rm *', action: 'deny' },
+                        { pattern: '*.log', action: 'allow', access: 'write', type: 'redirect' }
+                    ]
+                }
             }
         });
     });

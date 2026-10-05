@@ -16,6 +16,7 @@ nav:
   - Overview: index.md
   - Architecture: architecture.md
   - API Reference: api-reference.md
+  - Configuration: configuration.md
   - Environment Variables: env.md
   - Quick Start: quickstart.md
   - Workspace Package: https://johanneslatzel.github.io/llm-chat-workspace/

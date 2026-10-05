@@ -7,6 +7,7 @@ import {
 import type { Workspace } from '@johannes.latzel/llm-chat-workspace';
 import type { ShellConfiguration } from '../lib/config.js';
 import { workspaceForPath } from '../lib/permission.js';
+import { PermissionType } from '../lib/types.js';
 
 /**
  * Tool that returns the current workspace and the permission rules / default
@@ -42,8 +43,13 @@ export class ShellPermissionsTool extends Tool {
             parts.push('Rules:');
             for (let i = 0; i < perms.permissionRules.length; i++) {
                 const rule = perms.permissionRules[i]!;
-                const access = rule.access !== undefined ? ` (${rule.access})` : '';
-                parts.push(`${i + 1}. ${rule.pattern} → ${rule.action}${access}`);
+                const descriptors: string[] = [];
+                if (rule.access !== undefined) descriptors.push(rule.access);
+                if ((rule.type ?? perms.defaultType) === PermissionType.Redirect) {
+                    descriptors.push('redirect');
+                }
+                const suffix = descriptors.length > 0 ? ` (${descriptors.join(', ')})` : '';
+                parts.push(`${i + 1}. ${rule.pattern} → ${rule.action}${suffix}`);
             }
         }
 

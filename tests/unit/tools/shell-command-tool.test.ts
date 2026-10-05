@@ -260,4 +260,15 @@ describe('ShellCommandTool', () => {
         await mockManager.close();
     });
 
+    it('reports the raw command when a redirect target is denied', async () => {
+        const system = new PermissionSystem(
+            createPermissionConfig([{ pattern: 'echo *', action: PermissionAction.Allow }])
+        );
+        const tool = new ShellCommandTool(manager, system, workspace);
+
+        const results = await tool.execute({ command: 'echo hi > /tmp/out', sessionId });
+        expect(results).toHaveLength(1);
+        expect(results[0]!.status).toBe(ResultStatus.Error);
+        expect(results[0]!.result).toBe('Permission denied for: echo hi > /tmp/out');
+    });
 });

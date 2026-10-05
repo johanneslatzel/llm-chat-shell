@@ -27,36 +27,6 @@ Permission settings load from a config file. The environment only configures its
 |----------|---------|-------------|
 | `LLM_CHAT_SHELL_CONFIG` | unset | Path to a strict-JSON permission config file. When unset, defaults apply (deny, no rules, no per-workspace overrides). |
 
-### Config file
-
-The config file is strict JSON (no comments) and may contain:
-
-- `globalPermissions`: the global settings as a full `{ "defaultPermission", "permissionRules" }` set (defaults: `"deny"`, `[]`)
-- `workspacePermissions`: an object keyed by resolved workspace root path, each value a full `{ "defaultPermission", "permissionRules" }` set
-
-Each rule is `{ "pattern", "action", "access" }`. `access` is optional and defaults to `"read"`; a rule marked `"write"` only applies in a workspace whose root grants write access.
-
-```json
-{
-    "globalPermissions": {
-        "defaultPermission": "deny",
-        "permissionRules": [
-            { "pattern": "git *", "action": "allow" },
-            { "pattern": "git push *", "action": "allow", "access": "write" },
-            { "pattern": "rm *", "action": "deny" }
-        ]
-    },
-    "workspacePermissions": {
-        "/path/to/ws-a": {
-            "defaultPermission": "allow",
-            "permissionRules": [{ "pattern": "rm *", "action": "deny" }]
-        }
-    }
-}
-```
-
-A ready-to-copy example lives in [`shell-config.example.json`](../shell-config.example.json).
-
-A workspace root with no `workspacePermissions` entry falls back to the global settings in `globalPermissions`. If the config file is unreadable, invalid JSON, or has an invalid shape, `ShellConfiguration` throws at construction; it never silently falls back to permissive defaults.
+See [Configuration](configuration.md) for the config file schema.
 
 The workspace package's own variables (`LLM_CHAT_WORKSPACE_*`) are documented in the [`@johannes.latzel/llm-chat-workspace`](https://johanneslatzel.github.io/llm-chat-workspace/) docs.

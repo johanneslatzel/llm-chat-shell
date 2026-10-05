@@ -22,21 +22,66 @@ export enum PermissionDenyReason {
     WriteAccess = 'write-access'
 }
 
+/** Type of a permission rule: which surface it authorizes. */
+export enum PermissionType {
+    /** The rule authorizes command cores. */
+    Command = 'command',
+    /** The rule authorizes redirect targets. */
+    Redirect = 'redirect'
+}
+
 /** A single permission rule matching a glob pattern to an action. */
 export interface PermissionRule {
     /** Glob pattern to match against subcommands (e.g. "git *"). */
     pattern: string;
     /** Action to take when the pattern matches. */
     action: PermissionAction;
-    /** Access level required from the workspace. Defaults to {@link PermissionAccess.Read}. */
+    /** Access level required from the workspace. Defaults to the effective {@link WorkspacePermissions.defaultAccess}. */
     access?: PermissionAccess;
+    /**
+     * Rule family: command-core rules or redirect-target rules. Defaults to the
+     * effective {@link WorkspacePermissions.defaultType}.
+     */
+    type?: PermissionType;
+}
+
+/** Direction of a file-expecting redirect. */
+export enum RedirectMode {
+    /** The redirect reads from the target file. */
+    Input = 'input',
+    /** The redirect writes to the target file (creating or truncating it). */
+    Output = 'output'
+}
+
+/** A single file-expecting redirect extracted from a subcommand. */
+export interface RedirectToken {
+    /** Whether the redirect reads or writes the target. */
+    mode: RedirectMode;
+    /** Unquoted literal target path as written (never resolved). */
+    target: string;
+    /** The redirect operator plus target as written (e.g. `> /tmp/out`). */
+    raw: string;
+}
+
+/** A single subcommand fragment with its redirects extracted. */
+export interface ParsedSubcommand {
+    /** The fragment as written (trimmed), redirects intact. */
+    raw: string;
+    /** The fragment with redirects removed (`''` for redirect-only fragments). */
+    core: string;
+    /** File-expecting redirects extracted from the fragment. */
+    tokens: RedirectToken[];
 }
 
 /** Permission settings for a single workspace, keyed by its resolved root path. */
 export interface WorkspacePermissions {
     /** Default action for commands not matching any rule in this workspace. */
     defaultPermission: PermissionAction;
-    /** Permission rules applied in this workspace. */
+    /** Default rule type for rules without an explicit type (default: Command). */
+    defaultType: PermissionType;
+    /** Default access level for rules without an explicit access (default: Read). */
+    defaultAccess: PermissionAccess;
+    /** Permission rules applied to command cores and redirect targets (family via {@link PermissionRule.type}). */
     permissionRules: PermissionRule[];
 }
 

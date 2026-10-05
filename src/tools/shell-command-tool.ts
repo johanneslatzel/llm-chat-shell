@@ -157,12 +157,12 @@ export class ShellCommandTool extends Tool {
         permission: PermissionCheckResult,
         workspaceRoot: string
     ): string[] {
-        // Re-check each subcommand to find which ones are denied
+        // Re-check each raw fragment (core + redirects) to find which are denied
         const denied: string[] = [];
-        for (const sub of permission.subcommands) {
-            const check = this.permissionSystem.check(sub, workspaceRoot);
+        for (const fragment of permission.fragments) {
+            const check = this.permissionSystem.check(fragment.raw, workspaceRoot);
             if (check.action === PermissionAction.Deny) {
-                denied.push(sub);
+                denied.push(fragment.raw);
             }
         }
         return denied;

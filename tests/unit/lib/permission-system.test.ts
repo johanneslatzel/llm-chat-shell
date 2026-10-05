@@ -1,15 +1,25 @@
 import { describe, it, expect } from 'vitest';
 import { PermissionSystem } from '../../../src/lib/permission.js';
-import { PermissionAction, PermissionAccess, PermissionDenyReason } from '../../../src/lib/types.js';
+import {
+    PermissionAction,
+    PermissionAccess,
+    PermissionDenyReason,
+    PermissionType,
+    RedirectMode
+} from '../../../src/lib/types.js';
 import { ShellConfiguration } from '../../../src/lib/config.js';
 
 describe('PermissionSystem', () => {
     function createConfig(
         rules: { pattern: string; action: PermissionAction; access?: PermissionAccess }[],
-        defaultAction = PermissionAction.Deny
+        defaultAction = PermissionAction.Deny,
+        pathRules: { pattern: string; action: PermissionAction; access?: PermissionAccess }[] = []
     ): ShellConfiguration {
         const cfg = new ShellConfiguration();
-        cfg.permissionRules = rules;
+        cfg.permissionRules = [
+            ...rules,
+            ...pathRules.map((rule) => ({ ...rule, type: PermissionType.Redirect }))
+        ];
         cfg.defaultPermission = defaultAction;
         return cfg;
     }
@@ -82,31 +92,57 @@ describe('PermissionSystem', () => {
         expect(result.subcommands).toEqual(['ls', 'grep foo']);
     });
 
-    it('handles redirect stripping in permission check', () => {
+    it('denies a redirect with no matching path rule even when the core is allowed', () => {
         const system = new PermissionSystem(
             createConfig([
                 { pattern: 'echo *', action: PermissionAction.Allow },
                 { pattern: 'rm *', action: PermissionAction.Deny }
             ])
         );
+        const result = system.check('echo hello > /tmp/out');
+        expect(result.action).toBe(PermissionAction.Deny);
+        expect(result.denyReason).toBe(PermissionDenyReason.Pattern);
+    });
+
+    it('allows a redirect matching a write-class path rule in a writable workspace', () => {
+        const system = new PermissionSystem(
+            createConfig(
+                [{ pattern: 'echo *', action: PermissionAction.Allow }],
+                PermissionAction.Deny,
+                [{ pattern: '/tmp/*', action: PermissionAction.Allow, access: PermissionAccess.Write }]
+            ),
+            () => true
+        );
         expect(system.check('echo hello > /tmp/out').action).toBe(PermissionAction.Allow);
     });
 
-    it('handles pipe + redirect', () => {
+    it('denies pipe + redirect when no path rule matches the target', () => {
         const system = new PermissionSystem(
             createConfig([
                 { pattern: 'ls', action: PermissionAction.Allow },
                 { pattern: 'grep *', action: PermissionAction.Allow }
             ])
         );
-        expect(system.check('ls | grep foo > /tmp/out').action).toBe(PermissionAction.Allow);
+        expect(system.check('ls | grep foo > /tmp/out').action).toBe(PermissionAction.Deny);
     });
 
-    it('handles stderr redirect', () => {
+    it('allows a stderr redirect to a path allowed by a path rule', () => {
+        const system = new PermissionSystem(
+            createConfig(
+                [{ pattern: 'ls', action: PermissionAction.Allow }],
+                PermissionAction.Deny,
+                [{ pattern: '/dev/null', action: PermissionAction.Allow, access: PermissionAccess.Write }]
+            ),
+            () => true
+        );
+        expect(system.check('ls 2>/dev/null').action).toBe(PermissionAction.Allow);
+    });
+
+    it('denies a stderr redirect to a path without a path rule', () => {
         const system = new PermissionSystem(
             createConfig([{ pattern: 'ls', action: PermissionAction.Allow }])
         );
-        expect(system.check('ls 2>/dev/null').action).toBe(PermissionAction.Allow);
+        expect(system.check('ls 2>/dev/null').action).toBe(PermissionAction.Deny);
     });
 
     it('matches ? glob pattern', () => {
@@ -117,23 +153,27 @@ describe('PermissionSystem', () => {
         expect(system.check('ls ab').action).toBe(PermissionAction.Deny);
     });
 
-    it('strips quoted redirect targets', () => {
+    it('matches literal unquoted redirect targets', () => {
         const system = new PermissionSystem(
-            createConfig([{ pattern: 'echo *', action: PermissionAction.Allow }])
+            createConfig(
+                [{ pattern: 'echo *', action: PermissionAction.Allow }],
+                PermissionAction.Deny,
+                [{ pattern: 'file name', action: PermissionAction.Allow, access: PermissionAccess.Write }]
+            ),
+            () => true
         );
         expect(system.check('echo hello > "file name"').action).toBe(PermissionAction.Allow);
-    });
-
-    it('strips single-quoted redirect targets', () => {
-        const system = new PermissionSystem(
-            createConfig([{ pattern: 'echo *', action: PermissionAction.Allow }])
-        );
         expect(system.check("echo hello > 'file name'").action).toBe(PermissionAction.Allow);
     });
 
-    it('strips quoted redirect targets with escaped chars', () => {
+    it('matches quoted redirect targets with escaped chars literally', () => {
         const system = new PermissionSystem(
-            createConfig([{ pattern: 'echo *', action: PermissionAction.Allow }])
+            createConfig(
+                [{ pattern: 'echo *', action: PermissionAction.Allow }],
+                PermissionAction.Deny,
+                [{ pattern: 'file"name', action: PermissionAction.Allow, access: PermissionAccess.Write }]
+            ),
+            () => true
         );
         expect(system.check(String.raw`echo hello > "file\"name"`).action).toBe(
             PermissionAction.Allow
@@ -145,7 +185,9 @@ describe('PermissionSystem', () => {
             const cfg = createConfig([{ pattern: 'git *', action: PermissionAction.Allow }]);
             cfg.workspacePermissions.set('/ws/a', {
                 defaultPermission: PermissionAction.Allow,
-                permissionRules: [{ pattern: 'git *', action: PermissionAction.Deny }]
+                permissionRules: [{ pattern: 'git *', action: PermissionAction.Deny }],
+                defaultType: PermissionType.Command,
+                defaultAccess: PermissionAccess.Read
             });
             const system = new PermissionSystem(cfg);
 
@@ -157,7 +199,9 @@ describe('PermissionSystem', () => {
             const cfg = createConfig([], PermissionAction.Deny);
             cfg.workspacePermissions.set('/ws/a', {
                 defaultPermission: PermissionAction.Allow,
-                permissionRules: []
+                permissionRules: [],
+                defaultType: PermissionType.Command,
+                defaultAccess: PermissionAccess.Read
             });
             const system = new PermissionSystem(cfg);
 
@@ -176,7 +220,9 @@ describe('PermissionSystem', () => {
             const cfg = createConfig([{ pattern: 'git *', action: PermissionAction.Allow }], PermissionAction.Deny);
             cfg.workspacePermissions.set('/ws/a', {
                 defaultPermission: PermissionAction.Deny,
-                permissionRules: [{ pattern: 'git *', action: PermissionAction.Deny }]
+                permissionRules: [{ pattern: 'git *', action: PermissionAction.Deny }],
+                defaultType: PermissionType.Command,
+                defaultAccess: PermissionAccess.Read
             });
             const system = new PermissionSystem(cfg);
 
@@ -187,7 +233,9 @@ describe('PermissionSystem', () => {
             const cfg = createConfig([{ pattern: 'echo *', action: PermissionAction.Allow }], PermissionAction.Deny);
             cfg.workspacePermissions.set('/ws/a', {
                 defaultPermission: PermissionAction.Allow,
-                permissionRules: [{ pattern: 'rm *', action: PermissionAction.Deny }]
+                permissionRules: [{ pattern: 'rm *', action: PermissionAction.Deny }],
+                defaultType: PermissionType.Command,
+                defaultAccess: PermissionAccess.Read
             });
             const system = new PermissionSystem(cfg);
 
@@ -337,13 +385,17 @@ describe('PermissionSystem', () => {
             defaultPermission: PermissionAction.Deny,
             permissionRules: [
                 { pattern: 'git push *', action: PermissionAction.Allow, access: PermissionAccess.Write }
-            ]
+            ],
+            defaultType: PermissionType.Command,
+            defaultAccess: PermissionAccess.Read
         });
         cfg.workspacePermissions.set('/ws/rw', {
             defaultPermission: PermissionAction.Deny,
             permissionRules: [
                 { pattern: 'git push *', action: PermissionAction.Allow, access: PermissionAccess.Write }
-            ]
+            ],
+            defaultType: PermissionType.Command,
+            defaultAccess: PermissionAccess.Read
         });
         const system = new PermissionSystem(cfg, (root) => root === '/ws/rw');
 
@@ -354,5 +406,211 @@ describe('PermissionSystem', () => {
         expect(system.check('git push origin main', '/ws/rw').action).toBe(
             PermissionAction.Allow
         );
+    });
+
+    describe('redirect path rules', () => {
+        it('denies output redirects in a read-only workspace with a write-access reason', () => {
+            const system = new PermissionSystem(
+                createConfig(
+                    [{ pattern: 'echo *', action: PermissionAction.Allow }],
+                    PermissionAction.Deny,
+                    [{ pattern: '/tmp/*', action: PermissionAction.Allow, access: PermissionAccess.Write }]
+                ),
+                () => false
+            );
+            const result = system.check('echo hi > /tmp/out', '/ws/a');
+            expect(result.action).toBe(PermissionAction.Deny);
+            expect(result.denyReason).toBe(PermissionDenyReason.WriteAccess);
+        });
+
+        it('allows input redirects with a read-class path rule', () => {
+            const system = new PermissionSystem(
+                createConfig(
+                    [{ pattern: 'cat', action: PermissionAction.Allow }],
+                    PermissionAction.Deny,
+                    [{ pattern: 'data/**', action: PermissionAction.Allow }]
+                )
+            );
+            expect(system.check('cat < data/in.txt', '/ws/a').action).toBe(PermissionAction.Allow);
+        });
+
+        it('denies input redirects when only a write-class path rule matches', () => {
+            const system = new PermissionSystem(
+                createConfig(
+                    [{ pattern: 'cat', action: PermissionAction.Allow }],
+                    PermissionAction.Deny,
+                    [{ pattern: 'data/**', action: PermissionAction.Allow, access: PermissionAccess.Write }]
+                )
+            );
+            const result = system.check('cat < data/in.txt', '/ws/a');
+            expect(result.action).toBe(PermissionAction.Deny);
+            expect(result.denyReason).toBe(PermissionDenyReason.Pattern);
+        });
+
+        it('denies output redirects when only a read-class path rule matches', () => {
+            const system = new PermissionSystem(
+                createConfig(
+                    [{ pattern: 'echo *', action: PermissionAction.Allow }],
+                    PermissionAction.Deny,
+                    [{ pattern: 'out/**', action: PermissionAction.Allow }]
+                ),
+                () => true
+            );
+            expect(system.check('echo hi > out/file.txt', '/ws/a').action).toBe(
+                PermissionAction.Deny
+            );
+        });
+
+        it('denies a redirect matching a deny path rule', () => {
+            const system = new PermissionSystem(
+                createConfig(
+                    [{ pattern: 'echo *', action: PermissionAction.Allow }],
+                    PermissionAction.Deny,
+                    [{ pattern: '/etc/*', action: PermissionAction.Deny }]
+                ),
+                () => true
+            );
+            expect(system.check('echo hi > /etc/passwd', '/ws/a').action).toBe(
+                PermissionAction.Deny
+            );
+        });
+
+        it('uses the most specific path rule', () => {
+            const system = new PermissionSystem(
+                createConfig(
+                    [{ pattern: 'echo *', action: PermissionAction.Allow }],
+                    PermissionAction.Deny,
+                    [
+                        { pattern: '/tmp/*', action: PermissionAction.Deny },
+                        { pattern: '/tmp/ok*', action: PermissionAction.Allow, access: PermissionAccess.Write }
+                    ]
+                ),
+                () => true
+            );
+            expect(system.check('echo hi > /tmp/okfile', '/ws/a').action).toBe(
+                PermissionAction.Allow
+            );
+            expect(system.check('echo hi > /tmp/other', '/ws/a').action).toBe(PermissionAction.Deny);
+        });
+
+        it('falls back to global path rules when a workspace has no entry', () => {
+            const cfg = createConfig(
+                [{ pattern: 'echo *', action: PermissionAction.Allow }],
+                PermissionAction.Deny,
+                [{ pattern: '/tmp/*', action: PermissionAction.Allow, access: PermissionAccess.Write }]
+            );
+            const system = new PermissionSystem(cfg, () => true);
+            expect(system.check('echo hi > /tmp/out', '/unknown').action).toBe(
+                PermissionAction.Allow
+            );
+        });
+
+        it('resolves path rules per workspace', () => {
+            const cfg = createConfig([{ pattern: 'echo *', action: PermissionAction.Allow }]);
+            cfg.workspacePermissions.set('/ws/tmp', {
+                defaultPermission: PermissionAction.Deny,
+                defaultType: PermissionType.Command,
+                defaultAccess: PermissionAccess.Read,
+                permissionRules: [
+                    { pattern: 'echo *', action: PermissionAction.Allow },
+                    {
+                        pattern: '/tmp/*',
+                        action: PermissionAction.Allow,
+                        access: PermissionAccess.Write,
+                        type: PermissionType.Redirect
+                    }
+                ]
+            });
+            const system = new PermissionSystem(cfg, () => true);
+            expect(system.check('echo hi > /tmp/out', '/ws/tmp').action).toBe(PermissionAction.Allow);
+            expect(system.check('echo hi > /tmp/out', '/ws/other').action).toBe(
+                PermissionAction.Deny
+            );
+        });
+
+        it('reports fragments in the result', () => {
+            const system = new PermissionSystem(
+                createConfig(
+                    [{ pattern: 'echo *', action: PermissionAction.Allow }],
+                    PermissionAction.Deny,
+                    [{ pattern: '/tmp/*', action: PermissionAction.Allow, access: PermissionAccess.Write }]
+                ),
+                () => true
+            );
+            const result = system.check('echo hi > /tmp/out', '/ws/a');
+            expect(result.fragments).toHaveLength(1);
+            expect(result.fragments[0]).toMatchObject({ raw: 'echo hi > /tmp/out', core: 'echo hi' });
+            expect(result.fragments[0]!.tokens).toEqual([
+                { mode: RedirectMode.Output, target: '/tmp/out', raw: '> /tmp/out' }
+            ]);
+            expect(result.subcommands).toEqual(['echo hi']);
+        });
+
+        it('checks redirect-only fragments with no command core', () => {
+            const system = new PermissionSystem(
+                createConfig(
+                    [{ pattern: 'echo *', action: PermissionAction.Allow }],
+                    PermissionAction.Deny,
+                    [{ pattern: '/tmp/*', action: PermissionAction.Allow, access: PermissionAccess.Write }]
+                ),
+                () => true
+            );
+            expect(system.check('> /tmp/out').action).toBe(PermissionAction.Allow);
+            expect(system.check('> /etc/passwd').action).toBe(PermissionAction.Deny);
+            const result = system.check('> /tmp/out');
+            expect(result.subcommands).toEqual(['']);
+            expect(result.fragments[0]).toMatchObject({ core: '', raw: '> /tmp/out' });
+        });
+    });
+
+    describe('default rule type', () => {
+        it('treats untyped rules as redirect rules when defaultType is redirect', () => {
+            const cfg = createConfig([]);
+            cfg.defaultType = PermissionType.Redirect;
+            cfg.permissionRules = [
+                { pattern: 'echo *', action: PermissionAction.Allow },
+                { pattern: '/tmp/*', action: PermissionAction.Allow, access: PermissionAccess.Write }
+            ];
+            const system = new PermissionSystem(cfg, () => true);
+
+            // The echo rule is a redirect rule now, so no command core matches
+            expect(system.check('echo hi', '/ws/a').action).toBe(PermissionAction.Deny);
+            expect(system.check('echo hi > /tmp/out', '/ws/a').action).toBe(PermissionAction.Deny);
+            expect(system.check('> /tmp/out', '/ws/a').action).toBe(PermissionAction.Allow);
+        });
+
+        it('honors an explicit rule type over defaultType', () => {
+            const cfg = createConfig([]);
+            cfg.defaultType = PermissionType.Redirect;
+            cfg.permissionRules = [
+                { pattern: 'echo *', action: PermissionAction.Allow, type: PermissionType.Command }
+            ];
+            const system = new PermissionSystem(cfg);
+            expect(system.check('echo hi').action).toBe(PermissionAction.Allow);
+        });
+    });
+
+    describe('default access tier', () => {
+        it('gates allow rules without explicit access when defaultAccess is write', () => {
+            const cfg = createConfig([{ pattern: 'git push *', action: PermissionAction.Allow }]);
+            cfg.defaultAccess = PermissionAccess.Write;
+            const system = new PermissionSystem(cfg, () => false);
+            const result = system.check('git push origin main', '/ws/a');
+            expect(result.action).toBe(PermissionAction.Deny);
+            expect(result.denyReason).toBe(PermissionDenyReason.WriteAccess);
+        });
+
+        it('applies defaultAccess to redirect rules without explicit access', () => {
+            const cfg = createConfig(
+                [{ pattern: 'echo *', action: PermissionAction.Allow }],
+                PermissionAction.Deny,
+                [{ pattern: '/tmp/*', action: PermissionAction.Allow }]
+            );
+            cfg.defaultAccess = PermissionAccess.Write;
+            const system = new PermissionSystem(cfg, () => true);
+
+            expect(system.check('echo hi > /tmp/out').action).toBe(PermissionAction.Allow);
+            expect(system.check('echo hi < /tmp/in').action).toBe(PermissionAction.Deny);
+        });
     });
 });

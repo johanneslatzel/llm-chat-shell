@@ -1,6 +1,6 @@
 {
     "name": "@johannes.latzel/llm-chat-shell",
-    "version": "0.1.1",
+    "version": "0.2.0",
     "description": "Tightly controlled shell tool for llm-chat with permission system",
     "license": "MIT",
     "sideEffects": false,
@@ -44,7 +44,7 @@
         "prebuild": "rm -rf dist/",
         "prepack": "npm run build",
         "build": "tsc -p tsconfig.build.json",
-        "verify": "tsc --noEmit && eslint . --max-warnings 0 && npm run check:lines && vitest run --coverage",
+        "verify": "tsc --noEmit && eslint . --max-warnings 0 && npm run check:lines && npm run check:mkdocs && vitest run --coverage",
         "lint": "eslint . --max-warnings 0",
         "format": "prettier --write 'docs/**/*.md' 'src/**/*.ts' 'tests/**/*.ts'",
         "docs": "docker run --rm -it -p 8000:8000 -v $PWD:/docs squidfunk/mkdocs-material",
@@ -54,7 +54,8 @@
         "clean:install": "rm -rf node_modules dist/ package-lock.json && npm cache clean --force && npm install && npm run verify",
         "prepare": "husky",
         "audit": "npm audit --audit-level=high",
-        "check:lines": "check-line-limits"
+        "check:lines": "check-line-limits",
+        "check:mkdocs": "check-mkdocs"
     },
     "lint-staged": {
         "src/**/*.ts": [
@@ -75,7 +76,7 @@
         "@types/picomatch": "^4.0.3",
         "@typescript-eslint/eslint-plugin": "^8.68.0",
         "@typescript-eslint/parser": "^8.60.0",
-        "@vitest/coverage-v8": "^4.1.11",
+        "@vitest/coverage-v8": "^5.0.0",
         "eslint": "^10.9.1",
         "eslint-config-prettier": "^10.1.2",
         "eslint-plugin-n": "^18.3.0",
@@ -83,7 +84,8 @@
         "lint-staged": "^17.4.1",
         "prettier": "^3.5.3",
         "typescript": "^6.0.3",
-        "vitest": "^4.1.8",
-        "@johannes.latzel/check-line-limits": "^1.0.1"
+        "vitest": "^5.0.0",
+        "@johannes.latzel/check-line-limits": "^1.0.1",
+        "@johannes.latzel/check-mkdocs": "^0.1.0"
     }
 }

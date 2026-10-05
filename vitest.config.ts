@@ -5,6 +5,7 @@ export default defineConfig({
         pool: 'forks',
         include: ['tests/**/*.test.ts'],
         exclude: ['dist/**', 'node_modules/**'],
+        fsModuleCache: true,
         coverage: {
             provider: 'v8',
             reporter: ['text', 'html', 'lcov'],

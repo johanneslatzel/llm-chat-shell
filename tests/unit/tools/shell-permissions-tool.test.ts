@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import { Workspace, DirectoryConfiguration, AccessType } from '@johannes.latzel/llm-chat-workspace';
 import { ShellPermissionsTool } from '../../../src/tools/shell-permissions-tool.js';
 import { ShellConfiguration } from '../../../src/lib/config.js';
-import { PermissionAction, PermissionAccess } from '../../../src/lib/types.js';
+import { PermissionAction, PermissionAccess, PermissionType } from '../../../src/lib/types.js';
 
 function createWorkspace(cwd: string): Workspace {
     return new Workspace(
@@ -62,6 +62,28 @@ describe('ShellPermissionsTool', () => {
         );
     });
 
+    it('annotates redirect rules in the rule listing', async () => {
+        const config = new ShellConfiguration();
+        config.defaultPermission = PermissionAction.Deny;
+        config.permissionRules = [
+            { pattern: 'git *', action: PermissionAction.Allow },
+            {
+                pattern: '/tmp/**',
+                action: PermissionAction.Allow,
+                access: PermissionAccess.Write,
+                type: PermissionType.Redirect
+            }
+        ];
+
+        const tool = new ShellPermissionsTool(config, createWorkspace(process.cwd()));
+        const results = await tool.execute({});
+
+        expect(results[0]!.result).toBe(
+            `Workspace: ${process.cwd()}\nDefault: deny\nRules:\n` +
+                `1. git * → allow\n2. /tmp/** → allow (write, redirect)`
+        );
+    });
+
     it('reflects config changes', async () => {
         const config = new ShellConfiguration();
         config.defaultPermission = PermissionAction.Allow;
@@ -84,6 +106,8 @@ describe('ShellPermissionsTool', () => {
         config.defaultPermission = PermissionAction.Allow;
         config.workspacePermissions.set(process.cwd(), {
             defaultPermission: PermissionAction.Deny,
+            defaultType: PermissionType.Command,
+            defaultAccess: PermissionAccess.Read,
             permissionRules: [{ pattern: 'git *', action: PermissionAction.Allow }]
         });
 

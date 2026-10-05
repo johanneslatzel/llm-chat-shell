@@ -7,7 +7,7 @@ import { ShellCommandTool } from '../../../src/tools/shell-command-tool.js';
 import { ShellSessionManager } from '../../../src/lib/session-manager.js';
 import { BashShellExecutor } from '../../../src/lib/bash-executor.js';
 import { PermissionSystem } from '../../../src/lib/permission.js';
-import { PermissionAction, PermissionAccess } from '../../../src/lib/types.js';
+import { PermissionAction, PermissionAccess, PermissionType } from '../../../src/lib/types.js';
 import { ShellConfiguration } from '../../../src/lib/config.js';
 import { ResultStatus } from '@johannes.latzel/llm-chat';
 import {
@@ -160,10 +160,14 @@ describe('ShellCommandTool', () => {
             const cfg = new ShellConfiguration();
             cfg.workspacePermissions.set(rootA, {
                 defaultPermission: PermissionAction.Deny,
+                defaultType: PermissionType.Command,
+                defaultAccess: PermissionAccess.Read,
                 permissionRules: [{ pattern: 'echo *', action: PermissionAction.Deny }]
             });
             cfg.workspacePermissions.set(rootB, {
                 defaultPermission: PermissionAction.Allow,
+                defaultType: PermissionType.Command,
+                defaultAccess: PermissionAccess.Read,
                 permissionRules: []
             });
             const system = new PermissionSystem(cfg);
@@ -217,10 +221,14 @@ describe('ShellCommandTool', () => {
             const cfg = new ShellConfiguration();
             cfg.workspacePermissions.set(rootA, {
                 defaultPermission: PermissionAction.Allow,
+                defaultType: PermissionType.Command,
+                defaultAccess: PermissionAccess.Read,
                 permissionRules: []
             });
             cfg.workspacePermissions.set(rootB, {
                 defaultPermission: PermissionAction.Deny,
+                defaultType: PermissionType.Command,
+                defaultAccess: PermissionAccess.Read,
                 permissionRules: [{ pattern: 'echo *', action: PermissionAction.Deny }]
             });
             const system = new PermissionSystem(cfg);

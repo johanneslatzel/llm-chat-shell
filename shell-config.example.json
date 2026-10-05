@@ -1,16 +1,24 @@
 {
   "globalPermissions": {
     "defaultPermission": "deny",
+    "defaultType": "command",
+    "defaultAccess": "read",
     "permissionRules": [
       { "pattern": "git *", "action": "allow" },
       { "pattern": "git push *", "action": "allow", "access": "write" },
-      { "pattern": "rm *", "action": "deny" }
+      { "pattern": "rm *", "action": "deny" },
+      { "pattern": "/tmp/**", "action": "allow", "access": "write", "type": "redirect" }
     ]
   },
   "workspacePermissions": {
     "/path/to/ws-a": {
       "defaultPermission": "allow",
-      "permissionRules": [{ "pattern": "rm *", "action": "deny" }]
+      "defaultType": "command",
+      "defaultAccess": "read",
+      "permissionRules": [
+        { "pattern": "rm *", "action": "deny" },
+        { "pattern": "*.log", "action": "allow", "access": "write", "type": "redirect" }
+      ]
     }
   }
 }
