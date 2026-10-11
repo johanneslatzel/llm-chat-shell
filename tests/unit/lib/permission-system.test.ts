@@ -109,7 +109,13 @@ describe('PermissionSystem', () => {
             createConfig(
                 [{ pattern: 'echo *', action: PermissionAction.Allow }],
                 PermissionAction.Deny,
-                [{ pattern: '/tmp/*', action: PermissionAction.Allow, access: PermissionAccess.Write }]
+                [
+                    {
+                        pattern: '/tmp/*',
+                        action: PermissionAction.Allow,
+                        access: PermissionAccess.Write
+                    }
+                ]
             ),
             () => true
         );
@@ -131,7 +137,13 @@ describe('PermissionSystem', () => {
             createConfig(
                 [{ pattern: 'ls', action: PermissionAction.Allow }],
                 PermissionAction.Deny,
-                [{ pattern: '/dev/null', action: PermissionAction.Allow, access: PermissionAccess.Write }]
+                [
+                    {
+                        pattern: '/dev/null',
+                        action: PermissionAction.Allow,
+                        access: PermissionAccess.Write
+                    }
+                ]
             ),
             () => true
         );
@@ -158,7 +170,13 @@ describe('PermissionSystem', () => {
             createConfig(
                 [{ pattern: 'echo *', action: PermissionAction.Allow }],
                 PermissionAction.Deny,
-                [{ pattern: 'file name', action: PermissionAction.Allow, access: PermissionAccess.Write }]
+                [
+                    {
+                        pattern: 'file name',
+                        action: PermissionAction.Allow,
+                        access: PermissionAccess.Write
+                    }
+                ]
             ),
             () => true
         );
@@ -171,7 +189,13 @@ describe('PermissionSystem', () => {
             createConfig(
                 [{ pattern: 'echo *', action: PermissionAction.Allow }],
                 PermissionAction.Deny,
-                [{ pattern: 'file"name', action: PermissionAction.Allow, access: PermissionAccess.Write }]
+                [
+                    {
+                        pattern: 'file"name',
+                        action: PermissionAction.Allow,
+                        access: PermissionAccess.Write
+                    }
+                ]
             ),
             () => true
         );
@@ -209,7 +233,10 @@ describe('PermissionSystem', () => {
         });
 
         it('falls back to global settings when workspace root has no entry', () => {
-            const cfg = createConfig([{ pattern: 'git *', action: PermissionAction.Allow }], PermissionAction.Deny);
+            const cfg = createConfig(
+                [{ pattern: 'git *', action: PermissionAction.Allow }],
+                PermissionAction.Deny
+            );
             const system = new PermissionSystem(cfg);
 
             expect(system.check('git add .', '/unknown').action).toBe(PermissionAction.Allow);
@@ -217,7 +244,10 @@ describe('PermissionSystem', () => {
         });
 
         it('keeps global behavior when no workspace root is provided', () => {
-            const cfg = createConfig([{ pattern: 'git *', action: PermissionAction.Allow }], PermissionAction.Deny);
+            const cfg = createConfig(
+                [{ pattern: 'git *', action: PermissionAction.Allow }],
+                PermissionAction.Deny
+            );
             cfg.workspacePermissions.set('/ws/a', {
                 defaultPermission: PermissionAction.Deny,
                 permissionRules: [{ pattern: 'git *', action: PermissionAction.Deny }],
@@ -230,7 +260,10 @@ describe('PermissionSystem', () => {
         });
 
         it('applies per-workspace rules within composed commands', () => {
-            const cfg = createConfig([{ pattern: 'echo *', action: PermissionAction.Allow }], PermissionAction.Deny);
+            const cfg = createConfig(
+                [{ pattern: 'echo *', action: PermissionAction.Allow }],
+                PermissionAction.Deny
+            );
             cfg.workspacePermissions.set('/ws/a', {
                 defaultPermission: PermissionAction.Allow,
                 permissionRules: [{ pattern: 'rm *', action: PermissionAction.Deny }],
@@ -251,9 +284,13 @@ describe('PermissionSystem', () => {
     describe('write-access tier', () => {
         it('allows a write rule in a writable workspace', () => {
             const system = new PermissionSystem(
-                createConfig(
-                    [{ pattern: 'git push *', action: PermissionAction.Allow, access: PermissionAccess.Write }]
-                ),
+                createConfig([
+                    {
+                        pattern: 'git push *',
+                        action: PermissionAction.Allow,
+                        access: PermissionAccess.Write
+                    }
+                ]),
                 () => true
             );
             const result = system.check('git push origin main', '/ws/a');
@@ -263,9 +300,13 @@ describe('PermissionSystem', () => {
 
         it('denies a write rule in a read-only workspace with a write-access reason', () => {
             const system = new PermissionSystem(
-                createConfig(
-                    [{ pattern: 'git push *', action: PermissionAction.Allow, access: PermissionAccess.Write }]
-                ),
+                createConfig([
+                    {
+                        pattern: 'git push *',
+                        action: PermissionAction.Allow,
+                        access: PermissionAccess.Write
+                    }
+                ]),
                 () => false
             );
             const result = system.check('git push origin main', '/ws/a');
@@ -276,7 +317,11 @@ describe('PermissionSystem', () => {
         it('does not apply write gating when no canWrite predicate is provided', () => {
             const system = new PermissionSystem(
                 createConfig([
-                    { pattern: 'git push *', action: PermissionAction.Allow, access: PermissionAccess.Write }
+                    {
+                        pattern: 'git push *',
+                        action: PermissionAction.Allow,
+                        access: PermissionAccess.Write
+                    }
                 ])
             );
             expect(system.check('git push origin main', '/ws/a').action).toBe(
@@ -303,7 +348,11 @@ describe('PermissionSystem', () => {
         it('deny rules are not gated by write access', () => {
             const system = new PermissionSystem(
                 createConfig([
-                    { pattern: 'git push *', action: PermissionAction.Deny, access: PermissionAccess.Write }
+                    {
+                        pattern: 'git push *',
+                        action: PermissionAction.Deny,
+                        access: PermissionAccess.Write
+                    }
                 ]),
                 () => false
             );
@@ -316,7 +365,11 @@ describe('PermissionSystem', () => {
             const system = new PermissionSystem(
                 createConfig([
                     { pattern: 'git *', action: PermissionAction.Allow },
-                    { pattern: 'git push *', action: PermissionAction.Allow, access: PermissionAccess.Write }
+                    {
+                        pattern: 'git push *',
+                        action: PermissionAction.Allow,
+                        access: PermissionAccess.Write
+                    }
                 ]),
                 () => false
             );
@@ -331,7 +384,11 @@ describe('PermissionSystem', () => {
             const writableRoots = new Set(['/ws/write']);
             const system = new PermissionSystem(
                 createConfig([
-                    { pattern: 'git push *', action: PermissionAction.Allow, access: PermissionAccess.Write }
+                    {
+                        pattern: 'git push *',
+                        action: PermissionAction.Allow,
+                        access: PermissionAccess.Write
+                    }
                 ]),
                 (root) => writableRoots.has(root)
             );
@@ -348,7 +405,11 @@ describe('PermissionSystem', () => {
         const system = new PermissionSystem(
             createConfig([
                 { pattern: 'git log *', action: PermissionAction.Allow },
-                { pattern: 'git push *', action: PermissionAction.Allow, access: PermissionAccess.Write }
+                {
+                    pattern: 'git push *',
+                    action: PermissionAction.Allow,
+                    access: PermissionAccess.Write
+                }
             ]),
             () => false
         );
@@ -362,7 +423,11 @@ describe('PermissionSystem', () => {
         const system = new PermissionSystem(
             createConfig([
                 { pattern: 'git log *', action: PermissionAction.Allow },
-                { pattern: 'git push *', action: PermissionAction.Allow, access: PermissionAccess.Write }
+                {
+                    pattern: 'git push *',
+                    action: PermissionAction.Allow,
+                    access: PermissionAccess.Write
+                }
             ]),
             () => true
         );
@@ -372,10 +437,7 @@ describe('PermissionSystem', () => {
     });
 
     it('does not gate the default permission by workspace access', () => {
-        const system = new PermissionSystem(
-            createConfig([], PermissionAction.Allow),
-            () => false
-        );
+        const system = new PermissionSystem(createConfig([], PermissionAction.Allow), () => false);
         expect(system.check('echo hi', '/ws/a').action).toBe(PermissionAction.Allow);
     });
 
@@ -384,7 +446,11 @@ describe('PermissionSystem', () => {
         cfg.workspacePermissions.set('/ws/ro', {
             defaultPermission: PermissionAction.Deny,
             permissionRules: [
-                { pattern: 'git push *', action: PermissionAction.Allow, access: PermissionAccess.Write }
+                {
+                    pattern: 'git push *',
+                    action: PermissionAction.Allow,
+                    access: PermissionAccess.Write
+                }
             ],
             defaultType: PermissionType.Command,
             defaultAccess: PermissionAccess.Read
@@ -392,7 +458,11 @@ describe('PermissionSystem', () => {
         cfg.workspacePermissions.set('/ws/rw', {
             defaultPermission: PermissionAction.Deny,
             permissionRules: [
-                { pattern: 'git push *', action: PermissionAction.Allow, access: PermissionAccess.Write }
+                {
+                    pattern: 'git push *',
+                    action: PermissionAction.Allow,
+                    access: PermissionAccess.Write
+                }
             ],
             defaultType: PermissionType.Command,
             defaultAccess: PermissionAccess.Read
@@ -403,9 +473,7 @@ describe('PermissionSystem', () => {
         expect(ro.action).toBe(PermissionAction.Deny);
         expect(ro.denyReason).toBe(PermissionDenyReason.WriteAccess);
 
-        expect(system.check('git push origin main', '/ws/rw').action).toBe(
-            PermissionAction.Allow
-        );
+        expect(system.check('git push origin main', '/ws/rw').action).toBe(PermissionAction.Allow);
     });
 
     describe('redirect path rules', () => {
@@ -414,7 +482,13 @@ describe('PermissionSystem', () => {
                 createConfig(
                     [{ pattern: 'echo *', action: PermissionAction.Allow }],
                     PermissionAction.Deny,
-                    [{ pattern: '/tmp/*', action: PermissionAction.Allow, access: PermissionAccess.Write }]
+                    [
+                        {
+                            pattern: '/tmp/*',
+                            action: PermissionAction.Allow,
+                            access: PermissionAccess.Write
+                        }
+                    ]
                 ),
                 () => false
             );
@@ -439,7 +513,13 @@ describe('PermissionSystem', () => {
                 createConfig(
                     [{ pattern: 'cat', action: PermissionAction.Allow }],
                     PermissionAction.Deny,
-                    [{ pattern: 'data/**', action: PermissionAction.Allow, access: PermissionAccess.Write }]
+                    [
+                        {
+                            pattern: 'data/**',
+                            action: PermissionAction.Allow,
+                            access: PermissionAccess.Write
+                        }
+                    ]
                 )
             );
             const result = system.check('cat < data/in.txt', '/ws/a');
@@ -482,7 +562,11 @@ describe('PermissionSystem', () => {
                     PermissionAction.Deny,
                     [
                         { pattern: '/tmp/*', action: PermissionAction.Deny },
-                        { pattern: '/tmp/ok*', action: PermissionAction.Allow, access: PermissionAccess.Write }
+                        {
+                            pattern: '/tmp/ok*',
+                            action: PermissionAction.Allow,
+                            access: PermissionAccess.Write
+                        }
                     ]
                 ),
                 () => true
@@ -490,14 +574,22 @@ describe('PermissionSystem', () => {
             expect(system.check('echo hi > /tmp/okfile', '/ws/a').action).toBe(
                 PermissionAction.Allow
             );
-            expect(system.check('echo hi > /tmp/other', '/ws/a').action).toBe(PermissionAction.Deny);
+            expect(system.check('echo hi > /tmp/other', '/ws/a').action).toBe(
+                PermissionAction.Deny
+            );
         });
 
         it('falls back to global path rules when a workspace has no entry', () => {
             const cfg = createConfig(
                 [{ pattern: 'echo *', action: PermissionAction.Allow }],
                 PermissionAction.Deny,
-                [{ pattern: '/tmp/*', action: PermissionAction.Allow, access: PermissionAccess.Write }]
+                [
+                    {
+                        pattern: '/tmp/*',
+                        action: PermissionAction.Allow,
+                        access: PermissionAccess.Write
+                    }
+                ]
             );
             const system = new PermissionSystem(cfg, () => true);
             expect(system.check('echo hi > /tmp/out', '/unknown').action).toBe(
@@ -522,7 +614,9 @@ describe('PermissionSystem', () => {
                 ]
             });
             const system = new PermissionSystem(cfg, () => true);
-            expect(system.check('echo hi > /tmp/out', '/ws/tmp').action).toBe(PermissionAction.Allow);
+            expect(system.check('echo hi > /tmp/out', '/ws/tmp').action).toBe(
+                PermissionAction.Allow
+            );
             expect(system.check('echo hi > /tmp/out', '/ws/other').action).toBe(
                 PermissionAction.Deny
             );
@@ -533,13 +627,22 @@ describe('PermissionSystem', () => {
                 createConfig(
                     [{ pattern: 'echo *', action: PermissionAction.Allow }],
                     PermissionAction.Deny,
-                    [{ pattern: '/tmp/*', action: PermissionAction.Allow, access: PermissionAccess.Write }]
+                    [
+                        {
+                            pattern: '/tmp/*',
+                            action: PermissionAction.Allow,
+                            access: PermissionAccess.Write
+                        }
+                    ]
                 ),
                 () => true
             );
             const result = system.check('echo hi > /tmp/out', '/ws/a');
             expect(result.fragments).toHaveLength(1);
-            expect(result.fragments[0]).toMatchObject({ raw: 'echo hi > /tmp/out', core: 'echo hi' });
+            expect(result.fragments[0]).toMatchObject({
+                raw: 'echo hi > /tmp/out',
+                core: 'echo hi'
+            });
             expect(result.fragments[0]!.tokens).toEqual([
                 { mode: RedirectMode.Output, target: '/tmp/out', raw: '> /tmp/out' }
             ]);
@@ -551,7 +654,13 @@ describe('PermissionSystem', () => {
                 createConfig(
                     [{ pattern: 'echo *', action: PermissionAction.Allow }],
                     PermissionAction.Deny,
-                    [{ pattern: '/tmp/*', action: PermissionAction.Allow, access: PermissionAccess.Write }]
+                    [
+                        {
+                            pattern: '/tmp/*',
+                            action: PermissionAction.Allow,
+                            access: PermissionAccess.Write
+                        }
+                    ]
                 ),
                 () => true
             );
@@ -569,7 +678,11 @@ describe('PermissionSystem', () => {
             cfg.defaultType = PermissionType.Redirect;
             cfg.permissionRules = [
                 { pattern: 'echo *', action: PermissionAction.Allow },
-                { pattern: '/tmp/*', action: PermissionAction.Allow, access: PermissionAccess.Write }
+                {
+                    pattern: '/tmp/*',
+                    action: PermissionAction.Allow,
+                    access: PermissionAccess.Write
+                }
             ];
             const system = new PermissionSystem(cfg, () => true);
 

@@ -19,12 +19,7 @@ import type { ShellExecutorFactory } from '../../../src/lib/session-manager.js';
 
 function createWorkspace(cwd: string): Workspace {
     return new Workspace(
-        new DirectoryConfiguration(
-            [{ type: AccessType.Write, path: cwd }],
-            [],
-            false,
-            cwd
-        )
+        new DirectoryConfiguration([{ type: AccessType.Write, path: cwd }], [], false, cwd)
     );
 }
 
@@ -51,11 +46,7 @@ describe('ShellCommandTool', () => {
             cfg.permissionRules = [{ pattern: '*', action: PermissionAction.Allow }];
             const ws = createWorkspace(process.cwd());
             const exec = new RecordingExecutor();
-            const captureManager = new ShellSessionManager(
-                { create: async () => exec },
-                cfg,
-                ws
-            );
+            const captureManager = new ShellSessionManager({ create: async () => exec }, cfg, ws);
             const system = new PermissionSystem(cfg);
             const tool = new ShellCommandTool(captureManager, system, ws);
 
@@ -80,11 +71,7 @@ describe('ShellCommandTool', () => {
             cfg.permissionRules = [{ pattern: '*', action: PermissionAction.Allow }];
             const ws = createWorkspace(process.cwd());
             const exec = new RecordingExecutor();
-            const captureManager = new ShellSessionManager(
-                { create: async () => exec },
-                cfg,
-                ws
-            );
+            const captureManager = new ShellSessionManager({ create: async () => exec }, cfg, ws);
             const system = new PermissionSystem(cfg);
             const tool = new ShellCommandTool(captureManager, system, ws);
 
@@ -112,14 +99,14 @@ describe('ShellCommandTool', () => {
             );
             const cfg = new ShellConfiguration();
             cfg.permissionRules = [
-                { pattern: 'git push *', action: PermissionAction.Allow, access: PermissionAccess.Write }
+                {
+                    pattern: 'git push *',
+                    action: PermissionAction.Allow,
+                    access: PermissionAccess.Write
+                }
             ];
             const exec = new RecordingExecutor();
-            const captureManager = new ShellSessionManager(
-                { create: async () => exec },
-                cfg,
-                ws
-            );
+            const captureManager = new ShellSessionManager({ create: async () => exec }, cfg, ws);
             const system = new PermissionSystem(cfg, (root) => ws.canWrite(root));
             const tool = new ShellCommandTool(captureManager, system, ws);
 
@@ -172,11 +159,7 @@ describe('ShellCommandTool', () => {
             });
             const system = new PermissionSystem(cfg);
             const exec = new RecordingExecutor();
-            const captureManager = new ShellSessionManager(
-                { create: async () => exec },
-                cfg,
-                ws
-            );
+            const captureManager = new ShellSessionManager({ create: async () => exec }, cfg, ws);
             const tool = new ShellCommandTool(captureManager, system, ws);
 
             const sid = await captureManager.createSession(rootB);
@@ -233,11 +216,7 @@ describe('ShellCommandTool', () => {
             });
             const system = new PermissionSystem(cfg);
             const exec = new RecordingExecutor();
-            const captureManager = new ShellSessionManager(
-                { create: async () => exec },
-                cfg,
-                ws
-            );
+            const captureManager = new ShellSessionManager({ create: async () => exec }, cfg, ws);
             const tool = new ShellCommandTool(captureManager, system, ws);
 
             const sid = await captureManager.createSession(rootB);
@@ -263,7 +242,7 @@ describe('ShellCommandTool', () => {
             await captureManager.close();
         });
 
-        it('actually cd\'s into the current workspace in a real bash session', async () => {
+        it("actually cd's into the current workspace in a real bash session", async () => {
             const dirA = fs.mkdtempSync(path.join(os.tmpdir(), 'ws-a-'));
             const dirB = fs.mkdtempSync(path.join(os.tmpdir(), 'ws-b-'));
             try {
@@ -285,7 +264,9 @@ describe('ShellCommandTool', () => {
                     new (class implements ShellExecutorFactory {
                         async create(cwd?: string): Promise<ShellExecutor> {
                             return new BashShellExecutor(
-                                cwd ? { ...new ShellConfiguration(), cwd } : new ShellConfiguration()
+                                cwd
+                                    ? { ...new ShellConfiguration(), cwd }
+                                    : new ShellConfiguration()
                             );
                         }
                     })(),

@@ -1,9 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import {
-    Workspace,
-    DirectoryConfiguration,
-    AccessType
-} from '@johannes.latzel/llm-chat-workspace';
+import { Workspace, DirectoryConfiguration, AccessType } from '@johannes.latzel/llm-chat-workspace';
 import { ShellSessionManager } from '../../../src/lib/session-manager.js';
 import { ShellConfiguration } from '../../../src/lib/config.js';
 import {
@@ -100,7 +96,6 @@ describe('ShellSessionManager', () => {
 
     describe('session death & expiry', () => {
         it('prunes a dead session on create so cap slots are freed', async () => {
-
             const cfg = createConfig(1);
             const dead = new MockExecutor(undefined, false);
             const live = new MockExecutor();
@@ -197,7 +192,9 @@ describe('ShellSessionManager', () => {
             for (const id of ids) {
                 await manager.closeSession(id);
             }
-            await expect(manager.getSessionWorkspaceRoot(ids[0]!)).rejects.toThrow('Session not found');
+            await expect(manager.getSessionWorkspaceRoot(ids[0]!)).rejects.toThrow(
+                'Session not found'
+            );
             await expect(manager.getSessionWorkspaceRoot(ids[119]!)).rejects.toThrow('was closed');
         });
 
@@ -484,7 +481,9 @@ describe('ShellSessionManager', () => {
                 sessionAlive: true
             });
             await vi.waitFor(async () =>
-                expect((await manager.getJobStatus(running.id)).status).toBe(ShellJobStatus.Completed)
+                expect((await manager.getJobStatus(running.id)).status).toBe(
+                    ShellJobStatus.Completed
+                )
             );
             expect((await manager.getJobStatus(running.id)).stdout).toBe('out');
             expect(closeCalls).toBe(1);

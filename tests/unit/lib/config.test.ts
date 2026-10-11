@@ -2,10 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import {
-    ShellConfiguration,
-    loadShellConfigFile
-} from '../../../src/lib/config.js';
+import { ShellConfiguration, loadShellConfigFile } from '../../../src/lib/config.js';
 import { PermissionAction, PermissionAccess, PermissionType } from '../../../src/lib/types.js';
 
 function clearEnv() {
@@ -256,7 +253,9 @@ describe('ShellConfiguration', () => {
                 '{ "globalPermissions": { "defaultPermission": "maybe", "permissionRules": [] } }'
             );
             process.env['LLM_CHAT_SHELL_CONFIG'] = file;
-            expect(() => new ShellConfiguration()).toThrow(/defaultPermission must be 'allow' or 'deny'/);
+            expect(() => new ShellConfiguration()).toThrow(
+                /defaultPermission must be 'allow' or 'deny'/
+            );
         });
 
         it('throws when globalPermissions.permissionRules is not an array', () => {
@@ -272,7 +271,9 @@ describe('ShellConfiguration', () => {
                 '{ "globalPermissions": { "defaultPermission": "deny", "permissionRules": [42] } }'
             );
             process.env['LLM_CHAT_SHELL_CONFIG'] = file;
-            expect(() => new ShellConfiguration()).toThrow(/must be an object with 'pattern' and 'action'/);
+            expect(() => new ShellConfiguration()).toThrow(
+                /must be an object with 'pattern' and 'action'/
+            );
         });
 
         it('throws when a rule has a non-string pattern', () => {
@@ -298,7 +299,11 @@ describe('ShellConfiguration', () => {
             process.env['LLM_CHAT_SHELL_CONFIG'] = file;
             const config = new ShellConfiguration();
             expect(config.permissionRules).toEqual([
-                { pattern: 'git push *', action: PermissionAction.Allow, access: PermissionAccess.Write }
+                {
+                    pattern: 'git push *',
+                    action: PermissionAction.Allow,
+                    access: PermissionAccess.Write
+                }
             ]);
         });
 
@@ -319,7 +324,9 @@ describe('ShellConfiguration', () => {
             );
             process.env['LLM_CHAT_SHELL_CONFIG'] = file;
             const config = new ShellConfiguration();
-            expect(config.permissionRules).toEqual([{ pattern: 'git *', action: PermissionAction.Allow }]);
+            expect(config.permissionRules).toEqual([
+                { pattern: 'git *', action: PermissionAction.Allow }
+            ]);
         });
 
         it('throws when a rule has an invalid access', () => {
@@ -394,7 +401,9 @@ describe('ShellConfiguration', () => {
             );
             process.env['LLM_CHAT_SHELL_CONFIG'] = file;
             const config = new ShellConfiguration();
-            expect(config.permissionRules).toEqual([{ pattern: 'git *', action: PermissionAction.Allow }]);
+            expect(config.permissionRules).toEqual([
+                { pattern: 'git *', action: PermissionAction.Allow }
+            ]);
         });
 
         it('throws when a rule has an invalid type', () => {
@@ -440,7 +449,9 @@ describe('ShellConfiguration', () => {
                 '{ "globalPermissions": { "defaultPermission": "deny", "defaultType": "maybe", "permissionRules": [] } }'
             );
             process.env['LLM_CHAT_SHELL_CONFIG'] = file;
-            expect(() => new ShellConfiguration()).toThrow(/defaultType must be 'command' or 'redirect'/);
+            expect(() => new ShellConfiguration()).toThrow(
+                /defaultType must be 'command' or 'redirect'/
+            );
         });
 
         it('throws when defaultAccess is invalid', () => {
@@ -448,7 +459,9 @@ describe('ShellConfiguration', () => {
                 '{ "globalPermissions": { "defaultPermission": "deny", "defaultAccess": "maybe", "permissionRules": [] } }'
             );
             process.env['LLM_CHAT_SHELL_CONFIG'] = file;
-            expect(() => new ShellConfiguration()).toThrow(/defaultAccess must be 'read' or 'write'/);
+            expect(() => new ShellConfiguration()).toThrow(
+                /defaultAccess must be 'read' or 'write'/
+            );
         });
     });
 
@@ -462,7 +475,9 @@ describe('ShellConfiguration', () => {
                 defaultAccess: PermissionAccess.Read,
                 permissionRules: []
             });
-            expect(config.resolvePermissions('/ws/a').defaultPermission).toBe(PermissionAction.Deny);
+            expect(config.resolvePermissions('/ws/a').defaultPermission).toBe(
+                PermissionAction.Deny
+            );
             expect(config.resolvePermissions('/ws/a').defaultType).toBe(PermissionType.Command);
             expect(config.resolvePermissions('/ws/a').defaultAccess).toBe(PermissionAccess.Read);
         });

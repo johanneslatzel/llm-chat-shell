@@ -206,7 +206,11 @@ describe('ShellSessionManager', () => {
             const cfg = createConfig();
             cfg.backgroundTimeout = 60000;
             const exec = new DeferredExecutor();
-            manager = new ShellSessionManager({ create: async () => exec }, cfg, createWorkspace(process.cwd()));
+            manager = new ShellSessionManager(
+                { create: async () => exec },
+                cfg,
+                createWorkspace(process.cwd())
+            );
             const id = await manager.createSession();
             await manager.submitCommand(id, 'echo hi');
             await vi.waitFor(async () => expect(exec.executeCalls).toHaveLength(1));
@@ -217,7 +221,11 @@ describe('ShellSessionManager', () => {
             const cfg = createConfig();
             cfg.maxTimeout = 5000;
             const exec = new DeferredExecutor();
-            manager = new ShellSessionManager({ create: async () => exec }, cfg, createWorkspace(process.cwd()));
+            manager = new ShellSessionManager(
+                { create: async () => exec },
+                cfg,
+                createWorkspace(process.cwd())
+            );
             const id = await manager.createSession();
             await manager.submitCommand(id, 'echo hi', { timeout: 999999 });
             await vi.waitFor(async () => expect(exec.executeCalls).toHaveLength(1));
@@ -228,7 +236,11 @@ describe('ShellSessionManager', () => {
             const cfg = createConfig();
             cfg.backgroundTimeout = 1000;
             const exec = new DeferredExecutor();
-            manager = new ShellSessionManager({ create: async () => exec }, cfg, createWorkspace(process.cwd()));
+            manager = new ShellSessionManager(
+                { create: async () => exec },
+                cfg,
+                createWorkspace(process.cwd())
+            );
             const id = await manager.createSession();
             const j1 = await manager.submitCommand(id, 'job1');
             const j2 = await manager.submitCommand(id, 'job2');
@@ -459,7 +471,9 @@ describe('ShellSessionManager', () => {
             await vi.waitFor(async () =>
                 expect((await manager.getJobStatus(job.id)).status).toBe(ShellJobStatus.Failed)
             );
-            expect((await manager.getJobStatus(job.id)).error).toBe('unexpected failure: close boom');
+            expect((await manager.getJobStatus(job.id)).error).toBe(
+                'unexpected failure: close boom'
+            );
         });
 
         it('skips the last-used bump when the session disappears mid-run', async () => {
@@ -499,11 +513,12 @@ describe('ShellSessionManager', () => {
             const queued = await manager.submitCommand(id, 'bg2');
             await vi.waitFor(async () => expect(exec.executeCalls).toHaveLength(1));
             expect((await manager.getJobStatus(queued.id)).position).toBe(1);
-            (manager as unknown as { sessions: { remove: (sessionId: string) => unknown } }).sessions.remove(id);
+            (
+                manager as unknown as { sessions: { remove: (sessionId: string) => unknown } }
+            ).sessions.remove(id);
             expect((await manager.getJobStatus(queued.id)).status).toBe(ShellJobStatus.Queued);
             expect((await manager.getJobStatus(queued.id)).position).toBe(1);
             exec.complete();
         });
     });
-
 });

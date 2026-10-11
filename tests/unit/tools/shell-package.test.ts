@@ -14,12 +14,7 @@ import { ResultStatus } from '@johannes.latzel/llm-chat';
 
 function createWorkspace(cwd: string): Workspace {
     return new Workspace(
-        new DirectoryConfiguration(
-            [{ type: AccessType.Write, path: cwd }],
-            [],
-            false,
-            cwd
-        )
+        new DirectoryConfiguration([{ type: AccessType.Write, path: cwd }], [], false, cwd)
     );
 }
 
@@ -167,4 +162,3 @@ describe('ShellPackage', () => {
         expect(disposeSpy).toHaveBeenCalledTimes(1);
     });
 });
-

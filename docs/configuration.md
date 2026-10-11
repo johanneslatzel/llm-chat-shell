@@ -21,21 +21,21 @@ in `globalPermissions`.
 
 Each rule is `{ "pattern", "action", "access", "type" }`:
 
-- `pattern` — picomatch glob. `**` is a true globstar only after a slash or at the start
+- `pattern`: glob pattern. `**` is a true globstar only after a slash or at the start
   of the pattern; paths containing a slash need `**/**` (or a concrete prefix), while
   slash-less targets like `out.txt` are covered by `*`.
-- `action` — `"allow"` or `"deny"`.
-- `access` — optional `"read"` (the effective `defaultAccess`) or `"write"`. A `write`
+- `action`: `"allow"` or `"deny"`.
+- `access`: optional `"read"` (the effective `defaultAccess`) or `"write"`. A `write`
   rule only applies in a workspace whose root grants write access; in a read-only
   workspace it is denied with a `write-access` reason.
-- `type` — optional `"command"` (the effective `defaultType`) or `"redirect"`, selecting
+- `type`: optional `"command"` (the effective `defaultType`) or `"redirect"`, selecting
   the family the rule authorizes.
 
 ### Rule families
 
 A single `permissionRules` list holds both families. A rule's effective type is its
-`type` or the section's `defaultType`: `"command"` rules match **command cores only** —
-the command name and arguments, with redirects stripped — while `"redirect"` rules match
+`type` or the section's `defaultType`: `"command"` rules match **command cores only**
+(the command name and arguments, with redirects stripped), while `"redirect"` rules match
 **redirect targets only**. The two families never authorize each other.
 
 ### Redirects

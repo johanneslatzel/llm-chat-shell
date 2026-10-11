@@ -15,12 +15,7 @@ import {
 
 function createWorkspace(cwd: string): Workspace {
     return new Workspace(
-        new DirectoryConfiguration(
-            [{ type: AccessType.Write, path: cwd }],
-            [],
-            false,
-            cwd
-        )
+        new DirectoryConfiguration([{ type: AccessType.Write, path: cwd }], [], false, cwd)
     );
 }
 
@@ -52,7 +47,11 @@ describe('ShellCommandTool', () => {
             const tool = new ShellCommandTool(captureManager, system, ws);
 
             const sid = await captureManager.createSession();
-            const results = await tool.execute({ command: 'echo hi', sessionId: sid, background: true });
+            const results = await tool.execute({
+                command: 'echo hi',
+                sessionId: sid,
+                background: true
+            });
             expect(results).toHaveLength(1);
             expect(results[0]!.status).toBe(ResultStatus.Success);
             expect(results[0]!.result).toMatch(/^Background job \S+ submitted/);
@@ -60,7 +59,9 @@ describe('ShellCommandTool', () => {
 
             const jobId = results[0]!.result.match(/^Background job (\S+) submitted/)?.[1]!;
             await vi.waitFor(async () =>
-                expect((await captureManager.getJobStatus(jobId)).status).toBe(ShellJobStatus.Completed)
+                expect((await captureManager.getJobStatus(jobId)).status).toBe(
+                    ShellJobStatus.Completed
+                )
             );
             expect((await captureManager.getJobStatus(jobId)).stdout).toBe('ok');
             await captureManager.close();
@@ -76,7 +77,11 @@ describe('ShellCommandTool', () => {
             const tool = new ShellCommandTool(captureManager, system, ws);
 
             const sid = await captureManager.createSession();
-            const results = await tool.execute({ command: 'echo hi', sessionId: sid, timeout: 5000 });
+            const results = await tool.execute({
+                command: 'echo hi',
+                sessionId: sid,
+                timeout: 5000
+            });
             expect(results[0]!.status).toBe(ResultStatus.Success);
             expect(exec.calls[0]!.idleTimeoutMs).toBe(5000);
             await captureManager.close();
@@ -101,7 +106,9 @@ describe('ShellCommandTool', () => {
             expect(results[0]!.status).toBe(ResultStatus.Success);
             const jobId = results[0]!.result.match(/^Background job (\S+) submitted/)?.[1]!;
             await vi.waitFor(async () =>
-                expect((await captureManager.getJobStatus(jobId)).status).toBe(ShellJobStatus.Completed)
+                expect((await captureManager.getJobStatus(jobId)).status).toBe(
+                    ShellJobStatus.Completed
+                )
             );
             expect(exec.calls[0]!.idleTimeoutMs).toBe(5000);
             await captureManager.close();
@@ -133,7 +140,11 @@ describe('ShellCommandTool', () => {
             const tool = new ShellCommandTool(captureManager, system, ws);
 
             const sid = await captureManager.createSession();
-            const results = await tool.execute({ command: 'echo hi', sessionId: sid, background: true });
+            const results = await tool.execute({
+                command: 'echo hi',
+                sessionId: sid,
+                background: true
+            });
             expect(results[0]!.status).toBe(ResultStatus.Error);
             expect(results[0]!.result).toContain('Permission denied');
             expect(exec.calls).toHaveLength(0);

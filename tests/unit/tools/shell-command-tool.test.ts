@@ -20,12 +20,7 @@ function createPermissionConfig(
 
 function createWorkspace(cwd: string): Workspace {
     return new Workspace(
-        new DirectoryConfiguration(
-            [{ type: AccessType.Write, path: cwd }],
-            [],
-            false,
-            cwd
-        )
+        new DirectoryConfiguration([{ type: AccessType.Write, path: cwd }], [], false, cwd)
     );
 }
 
@@ -180,7 +175,13 @@ describe('ShellCommandTool', () => {
         const mockManager = new ShellSessionManager(
             {
                 create: async () =>
-                    new MockExecutor({ stdout: '', stderr: 'some error', exitCode: 0, timedOut: false, sessionAlive: true })
+                    new MockExecutor({
+                        stdout: '',
+                        stderr: 'some error',
+                        exitCode: 0,
+                        timedOut: false,
+                        sessionAlive: true
+                    })
             },
             cfg,
             ws
@@ -240,7 +241,13 @@ describe('ShellCommandTool', () => {
         const mockManager = new ShellSessionManager(
             {
                 create: async () =>
-                    new MockExecutor({ stdout: 'partial output', stderr: '', exitCode: -1, timedOut: true, sessionAlive: true })
+                    new MockExecutor({
+                        stdout: 'partial output',
+                        stderr: '',
+                        exitCode: -1,
+                        timedOut: true,
+                        sessionAlive: true
+                    })
             },
             cfg,
             ws
@@ -270,5 +277,152 @@ describe('ShellCommandTool', () => {
         expect(results).toHaveLength(1);
         expect(results[0]!.status).toBe(ResultStatus.Error);
         expect(results[0]!.result).toBe('Permission denied for: echo hi > /tmp/out');
+    });
+
+    describe('ShellCommandTool auto-create session', () => {
+        function allow(rules: { pattern: string; action: PermissionAction }[]): PermissionSystem {
+            return new PermissionSystem(createPermissionConfig(rules));
+        }
+
+        const echoAllowed = [{ pattern: 'echo *', action: PermissionAction.Allow }];
+
+        it('creates a session and returns a delimited notice when sessionId is omitted', async () => {
+            const tool = new ShellCommandTool(manager, allow(echoAllowed), workspace);
+
+            const before = (await manager.listSessions()).length;
+            const results = await tool.execute({ command: 'echo hello' });
+            expect(results).toHaveLength(1);
+            expect(results[0]!.status).toBe(ResultStatus.Success);
+            const text = results[0]!.result ?? '';
+            expect(text).toContain('[shell_command] new session: ');
+            expect(text).toContain('[shell_command] --- begin output ---');
+            expect(text).toContain('hello');
+            expect(text).toContain('[shell_command] --- end output ---');
+
+            const newId = /\[shell_command\] new session: (\S+)/.exec(text)?.[1];
+            expect(newId).toBeDefined();
+            expect((await manager.listSessions()).length).toBe(before + 1);
+            expect((await manager.listSessions()).some((entry) => entry.id === newId)).toBe(true);
+        });
+
+        it('treats an empty sessionId as omitted', async () => {
+            const tool = new ShellCommandTool(manager, allow(echoAllowed), workspace);
+            const results = await tool.execute({ command: 'echo hi', sessionId: '' });
+            expect(results[0]!.status).toBe(ResultStatus.Success);
+            expect(results[0]!.result).toContain('[shell_command] new session: ');
+        });
+
+        it('treats a whitespace-only sessionId as omitted', async () => {
+            const tool = new ShellCommandTool(manager, allow(echoAllowed), workspace);
+            const results = await tool.execute({ command: 'echo hi', sessionId: '   ' });
+            expect(results[0]!.status).toBe(ResultStatus.Success);
+            expect(results[0]!.result).toContain('[shell_command] new session: ');
+        });
+
+        it('reuses the returned id in a follow-up call without the notice', async () => {
+            const tool = new ShellCommandTool(manager, allow(echoAllowed), workspace);
+            const first = await tool.execute({ command: 'echo one' });
+            const newId = /\[shell_command\] new session: (\S+)/.exec(first[0]!.result ?? '')?.[1];
+            if (newId === undefined) throw new Error('expected a session id');
+
+            const second = await tool.execute({ command: 'echo two', sessionId: newId });
+            expect(second[0]!.status).toBe(ResultStatus.Success);
+            expect(second[0]!.result).toBe('two');
+        });
+
+        it('does not create a session when the command is denied', async () => {
+            const tool = new ShellCommandTool(
+                manager,
+                allow([{ pattern: 'rm *', action: PermissionAction.Deny }]),
+                workspace
+            );
+
+            const before = (await manager.listSessions()).length;
+            const results = await tool.execute({ command: 'rm -rf /tmp' });
+            expect(results[0]!.status).toBe(ResultStatus.Error);
+            expect(results[0]!.result).toContain('Permission denied');
+            expect((await manager.listSessions()).length).toBe(before);
+        });
+
+        it('keeps the not-found error and creates no session for an unknown id', async () => {
+            const tool = new ShellCommandTool(
+                manager,
+                allow([{ pattern: '*', action: PermissionAction.Allow }]),
+                workspace
+            );
+
+            const before = (await manager.listSessions()).length;
+            const results = await tool.execute({ command: 'echo hi', sessionId: 'unknown-id' });
+            expect(results[0]!.status).toBe(ResultStatus.Error);
+            expect(results[0]!.result).toContain('Session not found: unknown-id');
+            expect((await manager.listSessions()).length).toBe(before);
+        });
+
+        it('background without an id returns the new session id and the jobId', async () => {
+            const tool = new ShellCommandTool(manager, allow(echoAllowed), workspace);
+
+            const results = await tool.execute({ command: 'echo bg', background: true });
+            expect(results[0]!.status).toBe(ResultStatus.Success);
+            const text = results[0]!.result ?? '';
+            expect(text).toMatch(/\[shell_command\] new session: \S+/);
+            expect(text).toContain('Background job');
+            expect(text).toContain('submitted');
+        });
+
+        it('reports the new id even when the command times out', async () => {
+            const cfg = new ShellConfiguration();
+            cfg.ctrlCTimeout = 500;
+            const ws = createWorkspace(process.cwd());
+            const mockManager = new ShellSessionManager(
+                {
+                    create: async () =>
+                        new MockExecutor({
+                            stdout: '',
+                            stderr: '',
+                            exitCode: -1,
+                            timedOut: true,
+                            sessionAlive: false,
+                            idleTimeoutMs: 500
+                        })
+                },
+                cfg,
+                ws
+            );
+            const tool = new ShellCommandTool(
+                mockManager,
+                allow([{ pattern: 'sleep *', action: PermissionAction.Allow }]),
+                ws
+            );
+
+            const results = await tool.execute({ command: 'sleep 10' });
+            expect(results[0]!.status).toBe(ResultStatus.Error);
+            const text = results[0]!.result ?? '';
+            expect(text).toMatch(/\[shell_command\] new session: \S+/);
+            expect(text).toContain('Command timed out and session was killed (idle limit: 500ms).');
+            await mockManager.close();
+        });
+
+        it('reports the max-sessions error and returns no id when the cap is reached', async () => {
+            const cfg = new ShellConfiguration();
+            cfg.maxSessions = 1;
+            const ws = createWorkspace(process.cwd());
+            const capManager = new ShellSessionManager(
+                { create: async () => new BashShellExecutor(new ShellConfiguration()) },
+                cfg,
+                ws
+            );
+            await capManager.createSession();
+            const tool = new ShellCommandTool(
+                capManager,
+                allow([{ pattern: 'echo *', action: PermissionAction.Allow }]),
+                ws
+            );
+
+            const results = await tool.execute({ command: 'echo hi' });
+            expect(results[0]!.status).toBe(ResultStatus.Error);
+            expect(results[0]!.result).toContain('Maximum sessions reached');
+            expect(results[0]!.result).not.toContain('[shell_command] new session:');
+            await capManager.close();
+        });
     });
 });

@@ -6,9 +6,9 @@ Creates a new persistent shell session. Returns a session ID for use with `shell
 
 **Parameters:**
 
-| Parameter | Type   | Required | Description                   |
-| --------- | ------ | -------- | ----------------------------- |
-| `cwd` | string | no      | Working directory for this session. Must be within the workspace's accessible directories. Relative paths are resolved against the workspace. Defaults to the workspace's current path. The session is bound to the containing workspace root; permission checks for this session use that root. |
+| Parameter | Type   | Required | Description                                                                                                                                                                                                                                                                                      |
+| --------- | ------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `cwd`     | string | no       | Working directory for this session. Must be within the workspace's accessible directories. Relative paths are resolved against the workspace. Defaults to the workspace's current path. The session is bound to the containing workspace root; permission checks for this session use that root. |
 
 **Returns:** A session ID string.
 
@@ -16,19 +16,32 @@ Creates a new persistent shell session. Returns a session ID for use with `shell
 
 ## ShellCommandTool (tool name: `shell_command`)
 
-Executes a shell command in a persistent session. Supports shell compositions including pipes (`|`), logical operators (`||`, `&&`), and stream redirects. Requires a session ID from `shell_create`.
+Executes a shell command in a persistent session. Supports shell compositions including pipes (`|`), logical operators (`||`, `&&`), and stream redirects.
+
+When `sessionId` is omitted, empty, or whitespace-only, a new session is created in the current workspace once the command is allowed, and its id is reported in the result (see below). A non-empty id that is unknown or tombstoned keeps its descriptive error and never creates a session.
 
 **Parameters:**
 
-| Parameter | Type   | Required | Description                   |
-| --------- | ------ | -------- | ----------------------------- |
-| `command` | string | yes      | The shell command to execute. |
-| `sessionId` | string | yes      | The session ID from `shell_create`. |
-| `useCurrentWorkspace` | boolean | no      | When `true`, the command runs in the current workspace and permissions are checked against it. If allowed, the session is **permanently rebound** to that workspace for all future permission checks and command cwds. Defaults to `false` (uses the session's bound workspace root and cwd). |
-| `background` | boolean | no      | When `true`, submit the command as a queued background job and return immediately with a job ID. Poll `shell_job_status` / `shell_jobs` for results. Defaults to `false`. |
-| `timeout` | integer | no      | Max idle time in ms (no stdout/stderr output) before the command is killed. Defaults to the configured foreground or background timeout; larger values are capped by the server config. |
+| Parameter             | Type    | Required | Description                                                                                                                                                                                                                                                                                   |
+| --------------------- | ------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `command`             | string  | yes      | The shell command to execute.                                                                                                                                                                                                                                                                 |
+| `sessionId`           | string  | no       | The session ID from `shell_create`. When omitted or empty, a new session is created in the current workspace and its id is returned in the result.                                                                                                                                            |
+| `useCurrentWorkspace` | boolean | no       | When `true`, the command runs in the current workspace and permissions are checked against it. If allowed, the session is **permanently rebound** to that workspace for all future permission checks and command cwds. Defaults to `false` (uses the session's bound workspace root and cwd). |
+| `background`          | boolean | no       | When `true`, submit the command as a queued background job and return immediately with a job ID. Poll `shell_job_status` / `shell_jobs` for results. Defaults to `false`.                                                                                                                     |
+| `timeout`             | integer | no       | Max idle time in ms (no stdout/stderr output) before the command is killed. Defaults to the configured foreground or background timeout; larger values are capped by the server config.                                                                                                       |
 
 **Returns:** Output of the command, or error message if denied/failed.
+
+When a session was auto-created, the result begins with a delimited notice so the model can tell it apart from command output:
+
+```
+[shell_command] new session: <id>
+[shell_command] --- begin output ---
+<command output>
+[shell_command] --- end output ---
+```
+
+With `background=true` the notice precedes the `Background job <jobId> submitted ...` line instead (both the session id and the job id are returned). Output for a provided, valid `sessionId` is unchanged.
 
 Each job runs in its own working directory (the session's cwd, or the current workspace with `useCurrentWorkspace: true`); the executor re-anchors there before running, and a `cd` inside a command affects only that command.
 
@@ -59,9 +72,9 @@ Returns the status and, once finished, the results (stdout, stderr, exit code) o
 
 **Parameters:**
 
-| Parameter | Type   | Required | Description                   |
-| --------- | ------ | -------- | ----------------------------- |
-| `jobId` | string | yes      | The job ID returned by `shell_command` when `background=true`. |
+| Parameter | Type   | Required | Description                                                    |
+| --------- | ------ | -------- | -------------------------------------------------------------- |
+| `jobId`   | string | yes      | The job ID returned by `shell_command` when `background=true`. |
 
 **Returns:** A human-readable job report with status, working directory, timestamps, and (once completed) output, exit code, and timeout/session-alive flags.
 
@@ -73,8 +86,8 @@ Lists the background jobs submitted to a session (queued, running, completed, fa
 
 **Parameters:**
 
-| Parameter | Type   | Required | Description                   |
-| --------- | ------ | -------- | ----------------------------- |
+| Parameter   | Type   | Required | Description                         |
+| ----------- | ------ | -------- | ----------------------------------- |
 | `sessionId` | string | yes      | The session ID from `shell_create`. |
 
 **Returns:** One line per job in `<status>\t<id>\t<cwd>\t<command>` form, or `No jobs for session <sessionId>.`
@@ -87,9 +100,9 @@ Changes the current workspace path to a new directory within the configured acce
 
 **Parameters:**
 
-| Parameter | Type   | Required | Description                   |
-| --------- | ------ | -------- | ----------------------------- |
-| `path` | string | yes      | Target directory path within the configured accessible directories. |
+| Parameter | Type   | Required | Description                                                         |
+| --------- | ------ | -------- | ------------------------------------------------------------------- |
+| `path`    | string | yes      | Target directory path within the configured accessible directories. |
 
 **Returns:** `Switched workspace to: <path>`, or an error if the target is outside the accessible directories.
 
@@ -102,14 +115,14 @@ Sessions are decoupled from workspace switches. Existing sessions keep their ori
 Returned by `BashShellExecutor.execute()`. Tool results wrap the raw text in the common
 `PartialToolResult` shape; the fields below describe the underlying command outcome.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `stdout` | string | Standard output of the command |
-| `stderr` | string | Standard error of the command |
-| `exitCode` | number | Exit code of the command (0 = success) |
-| `timedOut` | boolean | True if the command was killed due to timeout |
-| `sessionAlive` | boolean | False if the bash process was killed (session is dead) |
-| `idleTimeoutMs` | number | Ms of inactivity (`ctrlCTimeout`) after which the command was timed out; present when `timedOut` is true |
+| Field           | Type    | Description                                                                                              |
+| --------------- | ------- | -------------------------------------------------------------------------------------------------------- |
+| `stdout`        | string  | Standard output of the command                                                                           |
+| `stderr`        | string  | Standard error of the command                                                                            |
+| `exitCode`      | number  | Exit code of the command (0 = success)                                                                   |
+| `timedOut`      | boolean | True if the command was killed due to timeout                                                            |
+| `sessionAlive`  | boolean | False if the bash process was killed (session is dead)                                                   |
+| `idleTimeoutMs` | number  | Ms of inactivity (`ctrlCTimeout`) after which the command was timed out; present when `timedOut` is true |
 
 ### Session death
 
@@ -169,39 +182,39 @@ const config = new ShellConfiguration();
 
 Env vars and their defaults are documented in [Environment Variables](env.md).
 
-| Property | Description |
-|----------|-------------|
-| `ctrlCTimeout` | Foreground command idle timeout; the timer resets on each output |
-| `sigtermTimeout` | SIGTERM-to-SIGKILL escalation grace period |
-| `killTimeout` | Grace period after SIGKILL before giving up |
+| Property            | Description                                                             |
+| ------------------- | ----------------------------------------------------------------------- |
+| `ctrlCTimeout`      | Foreground command idle timeout; the timer resets on each output        |
+| `sigtermTimeout`    | SIGTERM-to-SIGKILL escalation grace period                              |
+| `killTimeout`       | Grace period after SIGKILL before giving up                             |
 | `backgroundTimeout` | Fallback idle timeout for background jobs without an explicit `timeout` |
-| `maxTimeout` | Cap applied to an LLM-supplied `timeout`; `0` disables the cap |
+| `maxTimeout`        | Cap applied to an LLM-supplied `timeout`; `0` disables the cap          |
 
 ### Session properties
 
-| Property | Description |
-|----------|-------------|
-| `maxSessions` | Concurrent session limit |
+| Property         | Description                                                                             |
+| ---------------- | --------------------------------------------------------------------------------------- |
+| `maxSessions`    | Concurrent session limit                                                                |
 | `sessionTimeout` | Idle expiry for a session; sessions idle this long are closed by the background sweeper |
 
 ### Permission properties
 
-| Property | Description |
-|----------|-------------|
-| `configFilePath` | Path to the strict-JSON permission config file; when set, `defaultPermission`, `defaultType`, `defaultAccess`, `permissionRules`, and `workspacePermissions` load from it |
-| `defaultPermission` | Global default action for unmatched commands |
-| `defaultType` | Global default rule type for rules without an explicit `type`; `PermissionType.Command` or `PermissionType.Redirect` |
-| `defaultAccess` | Global default access for rules without an explicit `access`; `PermissionAccess.Read` or `PermissionAccess.Write` |
-| `permissionRules` | Global rules for command cores and redirect targets; each is `{ pattern, action, access?, type? }` |
-| `workspacePermissions` | Per-workspace overrides as `Map<resolvedRoot, WorkspacePermissions>`; programmatic assignment takes precedence over the config file |
+| Property               | Description                                                                                                                                                               |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `configFilePath`       | Path to the strict-JSON permission config file; when set, `defaultPermission`, `defaultType`, `defaultAccess`, `permissionRules`, and `workspacePermissions` load from it |
+| `defaultPermission`    | Global default action for unmatched commands                                                                                                                              |
+| `defaultType`          | Global default rule type for rules without an explicit `type`; `PermissionType.Command` or `PermissionType.Redirect`                                                      |
+| `defaultAccess`        | Global default access for rules without an explicit `access`; `PermissionAccess.Read` or `PermissionAccess.Write`                                                         |
+| `permissionRules`      | Global rules for command cores and redirect targets; each is `{ pattern, action, access?, type? }`                                                                        |
+| `workspacePermissions` | Per-workspace overrides as `Map<resolvedRoot, WorkspacePermissions>`; programmatic assignment takes precedence over the config file                                       |
 
 The config file schema and loading semantics are documented in [Configuration](configuration.md); `loadShellConfigFile(path)` throws on an unreadable file, invalid JSON, or an invalid shape.
 
 ### Methods
 
-| Method | Description |
-|--------|-------------|
-| `resolvePermissions(workspaceRoot: string)` | Returns the `WorkspacePermissions` for a root, falling back to the global `defaultPermission` / `defaultType` / `defaultAccess` / `permissionRules` when the root has no entry (or is `''`). |
+| Method                                                        | Description                                                                                                                                                                                             |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `resolvePermissions(workspaceRoot: string)`                   | Returns the `WorkspacePermissions` for a root, falling back to the global `defaultPermission` / `defaultType` / `defaultAccess` / `permissionRules` when the root has no entry (or is `''`).            |
 | `resolveIdleTimeout(background: boolean, requested?: number)` | Returns the effective idle timeout: a positive `requested` value wins (capped at `maxTimeout` when enabled); otherwise `backgroundTimeout` for background jobs, `ctrlCTimeout` for foreground commands. |
 
 ---

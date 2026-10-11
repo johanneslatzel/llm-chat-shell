@@ -20,14 +20,18 @@ service.tools().add(pkg);
 Example: Allow git commands and `ls`, deny `rm`, and deny everything else:
 
 ```typescript
-import { ShellPackage, ShellConfiguration, PermissionAction } from '@johannes.latzel/llm-chat-shell';
+import {
+    ShellPackage,
+    ShellConfiguration,
+    PermissionAction
+} from '@johannes.latzel/llm-chat-shell';
 
 const config = new ShellConfiguration();
 config.defaultPermission = PermissionAction.Deny;
 config.permissionRules = [
     { pattern: 'git *', action: PermissionAction.Allow },
     { pattern: 'ls *', action: PermissionAction.Allow },
-    { pattern: 'rm *', action: PermissionAction.Deny },
+    { pattern: 'rm *', action: PermissionAction.Deny }
 ];
 
 const pkg = new ShellPackage(config);
@@ -41,7 +45,12 @@ The package manages sessions automatically. For explicit lifecycle control:
 The workspace is provided by the [`@johannes.latzel/llm-chat-workspace`](https://johanneslatzel.github.io/llm-chat-workspace/) package:
 
 ```typescript
-import { ShellPackage, ShellConfiguration, ShellSessionManager, BashShellExecutor } from '@johannes.latzel/llm-chat-shell';
+import {
+    ShellPackage,
+    ShellConfiguration,
+    ShellSessionManager,
+    BashShellExecutor
+} from '@johannes.latzel/llm-chat-shell';
 import { Workspace, DirectoryConfiguration } from '@johannes.latzel/llm-chat-workspace';
 
 const config = new ShellConfiguration();

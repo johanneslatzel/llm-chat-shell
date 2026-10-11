@@ -7,12 +7,7 @@ import { PermissionAction, PermissionAccess, PermissionType } from '../../../src
 
 function createWorkspace(cwd: string): Workspace {
     return new Workspace(
-        new DirectoryConfiguration(
-            [{ type: AccessType.Write, path: cwd }],
-            [],
-            false,
-            cwd
-        )
+        new DirectoryConfiguration([{ type: AccessType.Write, path: cwd }], [], false, cwd)
     );
 }
 
@@ -51,7 +46,11 @@ describe('ShellPermissionsTool', () => {
         config.defaultPermission = PermissionAction.Deny;
         config.permissionRules = [
             { pattern: 'git *', action: PermissionAction.Allow },
-            { pattern: 'git push *', action: PermissionAction.Allow, access: PermissionAccess.Write }
+            {
+                pattern: 'git push *',
+                action: PermissionAction.Allow,
+                access: PermissionAccess.Write
+            }
         ];
 
         const tool = new ShellPermissionsTool(config, createWorkspace(process.cwd()));
@@ -124,12 +123,7 @@ describe('ShellPermissionsTool', () => {
         const nested = path.join(root, 'src');
         const config = new ShellConfiguration();
         const workspace = new Workspace(
-            new DirectoryConfiguration(
-                [{ type: AccessType.Write, path: root }],
-                [],
-                false,
-                nested
-            )
+            new DirectoryConfiguration([{ type: AccessType.Write, path: root }], [], false, nested)
         );
 
         const tool = new ShellPermissionsTool(config, workspace);
@@ -145,12 +139,7 @@ describe('ShellPermissionsTool', () => {
         const outside = path.resolve('ws-outside');
         const config = new ShellConfiguration();
         const workspace = new Workspace(
-            new DirectoryConfiguration(
-                [{ type: AccessType.Write, path: root }],
-                [],
-                false,
-                outside
-            )
+            new DirectoryConfiguration([{ type: AccessType.Write, path: root }], [], false, outside)
         );
 
         const tool = new ShellPermissionsTool(config, workspace);

@@ -4,7 +4,11 @@ import { SessionRegistry } from '../../../src/lib/session-registry.js';
 import type { SessionEntry } from '../../../src/lib/session-registry.js';
 import { createJobRecord, JobRegistry } from '../../../src/lib/job-registry.js';
 import { ShellConfiguration } from '../../../src/lib/config.js';
-import type { ShellCommandResult, ShellExecutor, ShellExecutorFactory } from '../../../src/lib/types.js';
+import type {
+    ShellCommandResult,
+    ShellExecutor,
+    ShellExecutorFactory
+} from '../../../src/lib/types.js';
 
 class MockExecutor implements ShellExecutor {
     constructor(private readonly alive = true) {}
@@ -34,7 +38,9 @@ function createConfig(maxSessions = 10): ShellConfiguration {
     return cfg;
 }
 
-function createFactory(executors?: ShellExecutor[]): ShellExecutorFactory & { created: ShellExecutor[] } {
+function createFactory(
+    executors?: ShellExecutor[]
+): ShellExecutorFactory & { created: ShellExecutor[] } {
     const queue = executors ?? [];
     const created: ShellExecutor[] = [];
     return {
@@ -196,7 +202,11 @@ describe('SessionRegistry', () => {
         const pending = queuedRecord('p', id);
         registry.enqueue(id, pending);
 
-        const executor = registry.teardown(id, 'closed', 'the session was closed before the job could run');
+        const executor = registry.teardown(
+            id,
+            'closed',
+            'the session was closed before the job could run'
+        );
         expect(executor).toBeDefined();
         expect(registry.get(id)).toBeUndefined();
         expect(pending.status).toBe('failed');
@@ -289,7 +299,9 @@ describe('SessionRegistry', () => {
             'was killed because a command produced no output for too long (idle limit: '
         );
         registry.recordDeath('s-expired', 'expired');
-        expect(registry.notFoundMessage('s-expired')).toContain('expired after being idle for too long');
+        expect(registry.notFoundMessage('s-expired')).toContain(
+            'expired after being idle for too long'
+        );
         registry.recordDeath('s-dead', 'process-exited');
         expect(registry.notFoundMessage('s-dead')).toContain('underlying shell process exited');
         registry.recordDeath('s-closed', 'closed');

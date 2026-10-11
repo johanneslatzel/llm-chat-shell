@@ -126,7 +126,9 @@ describe('ShellSessionManager', () => {
                 ids.push((await manager.submitCommand(id, `job-${i}`)).id);
             }
             await vi.waitFor(async () =>
-                expect((await manager.getJobStatus(ids[209]!)).status).toBe(ShellJobStatus.Completed)
+                expect((await manager.getJobStatus(ids[209]!)).status).toBe(
+                    ShellJobStatus.Completed
+                )
             );
             await expect(manager.getJobStatus(ids[0]!)).rejects.toThrow('Job not found');
             await expect(manager.getJobStatus(ids[9]!)).rejects.toThrow('Job not found');
@@ -152,7 +154,7 @@ describe('ShellSessionManager', () => {
             expect(jobsA.map((j) => j.sessionId)).toEqual([idA]);
         });
 
-        it("lists all retained jobs across sessions, oldest first", async () => {
+        it('lists all retained jobs across sessions, oldest first', async () => {
             manager = new ShellSessionManager(
                 { create: async () => new MockExecutor() },
                 createConfig(),
@@ -234,7 +236,9 @@ describe('ShellSessionManager', () => {
                 fastIds.push((await manager.submitCommand(fastSession, `fast-${i}`)).id);
             }
             await vi.waitFor(async () =>
-                expect((await manager.getJobStatus(fastIds[199]!)).status).toBe(ShellJobStatus.Completed)
+                expect((await manager.getJobStatus(fastIds[199]!)).status).toBe(
+                    ShellJobStatus.Completed
+                )
             );
 
             expect((await manager.getJobStatus(running.id)).status).toBe(ShellJobStatus.Running);

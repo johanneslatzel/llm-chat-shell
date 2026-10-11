@@ -213,20 +213,30 @@ describe('parseSubcommands', () => {
         });
 
         it('treats 2>&1 stderr-to-stdout redirect as an fd dup (no token)', () => {
-            expect(parseSubcommands('cmd 2>&1')).toEqual([{ raw: 'cmd 2>&1', core: 'cmd', tokens: [] }]);
+            expect(parseSubcommands('cmd 2>&1')).toEqual([
+                { raw: 'cmd 2>&1', core: 'cmd', tokens: [] }
+            ]);
         });
 
         it('treats 1>&2 and >&- as fd dups (no token)', () => {
-            expect(parseSubcommands('cmd 1>&2')).toEqual([{ raw: 'cmd 1>&2', core: 'cmd', tokens: [] }]);
-            expect(parseSubcommands('cmd >&-')).toEqual([{ raw: 'cmd >&-', core: 'cmd', tokens: [] }]);
+            expect(parseSubcommands('cmd 1>&2')).toEqual([
+                { raw: 'cmd 1>&2', core: 'cmd', tokens: [] }
+            ]);
+            expect(parseSubcommands('cmd >&-')).toEqual([
+                { raw: 'cmd >&-', core: 'cmd', tokens: [] }
+            ]);
         });
 
         it('treats >& with a descriptor target as an fd dup (no token)', () => {
-            expect(parseSubcommands('cmd >&1')).toEqual([{ raw: 'cmd >&1', core: 'cmd', tokens: [] }]);
+            expect(parseSubcommands('cmd >&1')).toEqual([
+                { raw: 'cmd >&1', core: 'cmd', tokens: [] }
+            ]);
         });
 
         it('treats <& with a descriptor target as an fd dup (no token)', () => {
-            expect(parseSubcommands('cmd <&3')).toEqual([{ raw: 'cmd <&3', core: 'cmd', tokens: [] }]);
+            expect(parseSubcommands('cmd <&3')).toEqual([
+                { raw: 'cmd <&3', core: 'cmd', tokens: [] }
+            ]);
         });
 
         it('treats >& with a non-descriptor word as an output redirect to that file', () => {
@@ -394,7 +404,9 @@ describe('parseSubcommands', () => {
                 {
                     raw: 'cmd > "file name"',
                     core: 'cmd',
-                    tokens: [{ mode: RedirectMode.Output, target: 'file name', raw: '> "file name"' }]
+                    tokens: [
+                        { mode: RedirectMode.Output, target: 'file name', raw: '> "file name"' }
+                    ]
                 }
             ]);
         });
@@ -441,9 +453,7 @@ describe('parseSubcommands', () => {
 
         it('treats a trailing backslash inside a quote as a literal', () => {
             const input = 'echo "abc' + '\\';
-            expect(parseSubcommands(input)).toEqual([
-                { raw: input, core: input, tokens: [] }
-            ]);
+            expect(parseSubcommands(input)).toEqual([{ raw: input, core: input, tokens: [] }]);
         });
 
         it('unquotes an escaped space in a target', () => {
@@ -451,7 +461,13 @@ describe('parseSubcommands', () => {
                 {
                     raw: String.raw`cmd > my\ file`,
                     core: 'cmd',
-                    tokens: [{ mode: RedirectMode.Output, target: 'my file', raw: String.raw`> my\ file` }]
+                    tokens: [
+                        {
+                            mode: RedirectMode.Output,
+                            target: 'my file',
+                            raw: String.raw`> my\ file`
+                        }
+                    ]
                 }
             ]);
         });
@@ -474,7 +490,9 @@ describe('parseSubcommands', () => {
         });
 
         it('skips a trailing >& with no target', () => {
-            expect(parseSubcommands('cmd >&')).toEqual([{ raw: 'cmd >&', core: 'cmd', tokens: [] }]);
+            expect(parseSubcommands('cmd >&')).toEqual([
+                { raw: 'cmd >&', core: 'cmd', tokens: [] }
+            ]);
         });
 
         it('keeps redirect-only fragments', () => {

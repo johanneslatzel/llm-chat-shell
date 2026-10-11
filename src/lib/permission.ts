@@ -11,7 +11,7 @@ import {
     type WorkspacePermissions
 } from './types.js';
 import type { ShellConfiguration } from './config.js';
-import { countLiterals, countWildcards, dominates, matchesPattern } from './glob.js';
+import { RuleSet } from '@johannes.latzel/pattern-specific';
 import { parseSubcommands } from './redirect-parser.js';
 
 /** Result of a permission check. */
@@ -181,7 +181,7 @@ export class PermissionSystem {
         );
         const best = this.pickMatchingRule(commandRules, core);
         if (best === undefined) return { action: perms.defaultPermission };
-        return this.decide(best.rule, perms.defaultAccess, workspaceRoot);
+        return this.decide(best, perms.defaultAccess, workspaceRoot);
     }
 
     /**
@@ -202,13 +202,13 @@ export class PermissionSystem {
             (rule) => this.effectiveType(rule, perms) === PermissionType.Redirect
         );
         const best = this.pickMatchingRule(redirectRules, token.target);
-        if (best === undefined || best.rule.action === PermissionAction.Deny) {
+        if (best === undefined || best.action === PermissionAction.Deny) {
             return { action: PermissionAction.Deny, denyReason: PermissionDenyReason.Pattern };
         }
 
         const required =
             token.mode === RedirectMode.Output ? PermissionAccess.Write : PermissionAccess.Read;
-        const ruleAccess = best.rule.access ?? perms.defaultAccess;
+        const ruleAccess = best.access ?? perms.defaultAccess;
         if (ruleAccess !== required) {
             return { action: PermissionAction.Deny, denyReason: PermissionDenyReason.Pattern };
         }
@@ -229,38 +229,12 @@ export class PermissionSystem {
      * Find the most specific rule whose pattern matches `value`, or undefined
      * when no rule matches. See the class doc for the specificity criteria.
      */
-    private pickMatchingRule<T extends PermissionRule>(
-        rules: T[],
-        value: string
-    ): { rule: T; index: number } | undefined {
-        const matching = rules
-            .map((rule, index) => ({ rule, index }))
-            .filter(({ rule }) => matchesPattern(value, rule.pattern));
-        if (matching.length === 0) return undefined;
-        if (matching.length === 1) return matching[0]!;
-        return this.sortBySpecificity(matching)[0]!;
-    }
-
-    private sortBySpecificity<T extends PermissionRule>(
-        matching: { rule: T; index: number }[]
-    ): { rule: T; index: number }[] {
-        return matching.sort((a, b) => {
-            const aDominates = dominates(a.rule.pattern, b.rule.pattern);
-            const bDominates = dominates(b.rule.pattern, a.rule.pattern);
-
-            if (aDominates && !bDominates) return -1;
-            if (!aDominates && bDominates) return 1;
-
-            const aWildcards = countWildcards(a.rule.pattern);
-            const bWildcards = countWildcards(b.rule.pattern);
-            if (aWildcards !== bWildcards) return aWildcards - bWildcards;
-
-            const aLiterals = countLiterals(a.rule.pattern);
-            const bLiterals = countLiterals(b.rule.pattern);
-            if (aLiterals !== bLiterals) return bLiterals - aLiterals;
-
-            return a.index - b.index;
-        });
+    private pickMatchingRule<T extends PermissionRule>(rules: T[], value: string): T | undefined {
+        const set = new RuleSet<T>((_current, next) => next);
+        for (const rule of rules) {
+            set.add(rule);
+        }
+        return set.apply(value);
     }
 
     /**

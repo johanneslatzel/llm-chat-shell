@@ -144,7 +144,9 @@ describe('ShellSessionManager', () => {
                 cfg,
                 createWorkspace(process.cwd())
             );
-            await expect(manager.getSessionWorkspaceRoot('bad-id')).rejects.toThrow('Session not found');
+            await expect(manager.getSessionWorkspaceRoot('bad-id')).rejects.toThrow(
+                'Session not found'
+            );
         });
 
         it('throws for unknown session in getSessionCwd', async () => {

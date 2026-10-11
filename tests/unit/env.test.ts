@@ -1,5 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { envString, envOptionalString, envInt, envFloat, envEnum, envBool } from '../../src/lib/env.js';
+import {
+    envString,
+    envOptionalString,
+    envInt,
+    envFloat,
+    envEnum,
+    envBool
+} from '../../src/lib/env.js';
 
 beforeEach(() => {
     delete process.env.TEST_KEY;

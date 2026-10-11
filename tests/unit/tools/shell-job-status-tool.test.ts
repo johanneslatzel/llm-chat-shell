@@ -95,7 +95,9 @@ describe('ShellJobStatusTool', () => {
         const tool = new ShellJobStatusTool(manager);
         const id = await manager.createSession();
         const job = await manager.submitCommand(id, 'echo hi');
-        await vi.waitFor(async () => expect((await manager.getJobStatus(job.id)).status).toBe('running'));
+        await vi.waitFor(async () =>
+            expect((await manager.getJobStatus(job.id)).status).toBe('running')
+        );
         exec.complete({
             stdout: 'out',
             stderr: 'err',
@@ -126,7 +128,9 @@ describe('ShellJobStatusTool', () => {
         const tool = new ShellJobStatusTool(manager);
         const id = await manager.createSession();
         const job = await manager.submitCommand(id, 'sleep 10');
-        await vi.waitFor(async () => expect((await manager.getJobStatus(job.id)).status).toBe('running'));
+        await vi.waitFor(async () =>
+            expect((await manager.getJobStatus(job.id)).status).toBe('running')
+        );
         exec.complete({
             stdout: '',
             stderr: '',
@@ -152,7 +156,9 @@ describe('ShellJobStatusTool', () => {
         const tool = new ShellJobStatusTool(manager);
         const id = await manager.createSession();
         const job = await manager.submitCommand(id, 'echo hi');
-        await vi.waitFor(async () => expect((await manager.getJobStatus(job.id)).status).toBe('running'));
+        await vi.waitFor(async () =>
+            expect((await manager.getJobStatus(job.id)).status).toBe('running')
+        );
         exec.complete({
             stdout: 'out',
             stderr: '',

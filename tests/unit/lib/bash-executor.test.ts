@@ -58,7 +58,7 @@ describe('BashShellExecutor', () => {
     });
 
     it('re-anchors into a cwd containing single quotes', async () => {
-        const dir = '/tmp/it\'s a test';
+        const dir = "/tmp/it's a test";
         await fs.mkdirSync(dir, { recursive: true });
         try {
             executor = new BashShellExecutor(new ShellConfiguration());
