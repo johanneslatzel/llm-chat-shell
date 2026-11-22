@@ -6,7 +6,7 @@ import { BashShellExecutor } from '../../../src/lib/bash-executor.js';
 import { PermissionSystem } from '../../../src/lib/permission.js';
 import { PermissionAction } from '../../../src/lib/types.js';
 import { ShellConfiguration } from '../../../src/lib/config.js';
-import { ResultStatus } from '@johannes.latzel/llm-chat';
+import { ResultStatus } from '@johannes.latzel/llm-chat-tool';
 import { type ShellCommandResult, type ShellExecutor } from '../../../src/lib/types.js';
 import type { ShellExecutorFactory } from '../../../src/lib/session-manager.js';
 

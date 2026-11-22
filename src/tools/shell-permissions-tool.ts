@@ -3,7 +3,7 @@ import {
     ToolParameters,
     ResultStatus,
     type PartialToolResult
-} from '@johannes.latzel/llm-chat';
+} from '@johannes.latzel/llm-chat-tool';
 import type { Workspace } from '@johannes.latzel/llm-chat-workspace';
 import type { ShellConfiguration } from '../lib/config.js';
 import { workspaceForPath } from '../lib/permission.js';

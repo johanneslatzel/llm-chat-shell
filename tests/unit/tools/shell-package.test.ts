@@ -10,7 +10,7 @@ import { ShellSessionManager } from '../../../src/lib/session-manager.js';
 import { PermissionAction, PermissionAccess } from '../../../src/lib/types.js';
 import type { ShellExecutor } from '../../../src/lib/types.js';
 import type { ShellExecutorFactory } from '../../../src/lib/session-manager.js';
-import { ResultStatus } from '@johannes.latzel/llm-chat';
+import { ResultStatus } from '@johannes.latzel/llm-chat-tool';
 
 function createWorkspace(cwd: string): Workspace {
     return new Workspace(

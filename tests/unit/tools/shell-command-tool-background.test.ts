@@ -5,7 +5,7 @@ import { ShellSessionManager } from '../../../src/lib/session-manager.js';
 import { PermissionSystem } from '../../../src/lib/permission.js';
 import { PermissionAction } from '../../../src/lib/types.js';
 import { ShellConfiguration } from '../../../src/lib/config.js';
-import { ResultStatus } from '@johannes.latzel/llm-chat';
+import { ResultStatus } from '@johannes.latzel/llm-chat-tool';
 import {
     ShellJobStatus,
     type ShellCommandResult,

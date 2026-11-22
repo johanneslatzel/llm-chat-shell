@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { Workspace, DirectoryConfiguration, AccessType } from '@johannes.latzel/llm-chat-workspace';
-import { ResultStatus } from '@johannes.latzel/llm-chat';
+import { ResultStatus } from '@johannes.latzel/llm-chat-tool';
 import { ShellJobsTool } from '../../../src/tools/shell-jobs-tool.js';
 import { ShellSessionManager } from '../../../src/lib/session-manager.js';
 import { ShellConfiguration } from '../../../src/lib/config.js';

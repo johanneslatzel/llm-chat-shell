@@ -5,7 +5,7 @@ import { ShellCreateTool } from '../../../src/tools/shell-create-tool.js';
 import { ShellSessionManager } from '../../../src/lib/session-manager.js';
 import { BashShellExecutor } from '../../../src/lib/bash-executor.js';
 import { ShellConfiguration } from '../../../src/lib/config.js';
-import { ResultStatus } from '@johannes.latzel/llm-chat';
+import { ResultStatus } from '@johannes.latzel/llm-chat-tool';
 import type { ShellExecutor } from '../../../src/lib/types.js';
 import type { ShellExecutorFactory } from '../../../src/lib/session-manager.js';
 

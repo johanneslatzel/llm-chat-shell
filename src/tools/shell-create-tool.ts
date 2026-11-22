@@ -4,7 +4,7 @@ import {
     ToolParameterProperty,
     ResultStatus,
     type PartialToolResult
-} from '@johannes.latzel/llm-chat';
+} from '@johannes.latzel/llm-chat-tool';
 import type { ShellSessionManager } from '../lib/session-manager.js';
 
 /**

@@ -1,6 +1,6 @@
 {
     "name": "@johannes.latzel/llm-chat-shell",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "description": "Tightly controlled shell tool for llm-chat with permission system",
     "license": "MIT",
     "sideEffects": false,
@@ -26,7 +26,7 @@
         "permissions"
     ],
     "engines": {
-        "node": ">=18"
+        "node": ">=22"
     },
     "publishConfig": {
         "access": "public"
@@ -65,8 +65,9 @@
         ]
     },
     "dependencies": {
-        "@johannes.latzel/llm-chat": "^0.7.0",
-        "@johannes.latzel/llm-chat-workspace": "^0.2.0",
+        "@johannes.latzel/env": "^0.1.0",
+        "@johannes.latzel/llm-chat-tool": "^0.1.0",
+        "@johannes.latzel/llm-chat-workspace": "^0.3.0",
         "@johannes.latzel/pattern-specific": "^0.1.0",
         "async-mutex": "^0.5.0"
     },
